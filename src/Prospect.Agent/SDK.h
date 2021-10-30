@@ -62,6 +62,7 @@ namespace SDK
 				Max = Count;
 				Data = static_cast<wchar_t*>((*GMalloc)->Malloc(Count * 2));
 
+				memset(Data, 0, Count * 2);
 				memcpy(Data, other, charLen * 2);
 			}
 		}

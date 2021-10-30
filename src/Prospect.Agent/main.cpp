@@ -27,7 +27,7 @@ SDK::FString __fastcall PlayFabApiGetUrlProxy(SDK::UPlayFabAPISettings* thiz, co
 {
 	logger::Print("[Agent] GetURL called with callPath %s\n", callPath.ToString().c_str());
 	
-	return std::wstring(L"http://127.0.0.1:8888") + std::wstring(callPath.c_str());
+	return std::wstring(L"http://127.0.0.1:5000") + std::wstring(callPath.c_str());
 }
 
 DWORD WINAPI OnDllAttach(LPVOID base)
