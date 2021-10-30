@@ -2,8 +2,12 @@ name: Build
 
 on: [push]
 
+env:
+  PROJ_AGENT: ./src/Prospect.Agent/Prospect.Agent.vcxproj
+  PROJ_LAUNCHER: ./src/Prospect.Launcher/Prospect.Launcher.csproj
+
 jobs:
-  builds:
+  build:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -13,14 +17,17 @@ jobs:
       with:
         dotnet-version: '5.0.x'
 
-    - name: Setup MSBUILD
+    - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.0.3
 
     - name: Restore NuGet
-      run: dotnet restore ./src/
+      run: dotnet restore ${{env.PROJ_LAUNCHER}}
+
+    - name: Install minhook
+      run: vcpkg install minhook:x64-windows-static
 
     - name: Build Prospect.Agent
-      run: msbuild /m /p:Configuration=Release ./src/Prospect.Agent/Prospect.Agent.vcxproj
+      run: msbuild /m /p:Configuration=Release /p:Platform=x64 ${{env.PROJ_AGENT}}
 
     - name: Build Prospect.Launcher
-      run: dotnet publish -o ./build-app -r win-x64 -c Release -v minimal ./src/Prospect.Launcher/Prospect.Launcher.csproj
+      run: dotnet publish -o ./build-app -r win-x64 -c Release -v minimal ${{env.PROJ_LAUNCHER}}
