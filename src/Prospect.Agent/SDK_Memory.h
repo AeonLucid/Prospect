@@ -75,5 +75,5 @@ namespace SDK
 		virtual const TCHAR* GetDescriptiveName() = 0;
 	}; 
 
-	FMalloc* GMalloc;
+	FMalloc** GMalloc;
 }

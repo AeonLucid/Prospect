@@ -38,10 +38,7 @@ DWORD WINAPI OnDllAttach(LPVOID base)
 	const auto hModulePtr = reinterpret_cast<uintptr_t>(hModule);
 
 	// Initialize GMalloc.
-	do
-	{
-		SDK::GMalloc = *reinterpret_cast<SDK::FMalloc**>(hModulePtr + OffsetGMalloc);
-	} while (SDK::GMalloc == nullptr);
+	SDK::GMalloc = reinterpret_cast<SDK::FMalloc**>(hModulePtr + OffsetGMalloc);
 
 	// Initialize MinHook.
 	if (MH_Initialize() != MH_OK)

@@ -48,13 +48,21 @@ namespace SDK
 	{
 		FString(const wchar_t* other)
 		{
-			Max = Count = *other ? std::wcslen(other) + 1 : 0;
+			const size_t charLen = std::wcslen(other);
 
-			if (Count)
+			if (charLen == 0)
 			{
-				Data = static_cast<wchar_t*>(GMalloc->Malloc(Count));
-				
-				wcscpy_s(Data, Count, other);
+				Count = 0;
+				Max = 0;
+				Data = nullptr;
+			}
+			else
+			{
+				Count = charLen + 1;
+				Max = Count;
+				Data = static_cast<wchar_t*>((*GMalloc)->Malloc(Count * 2));
+
+				memcpy(Data, other, charLen * 2);
 			}
 		}
 
