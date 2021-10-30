@@ -1,0 +1,26 @@
+name: Build
+
+on: [push]
+
+jobs:
+  builds:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Dotnet 
+      uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '5.0.x'
+
+    - name: Setup MSBUILD
+      uses: microsoft/setup-msbuild@v1.0.3
+
+    - name: Restore NuGet
+      run: dotnet restore ./src/
+
+    - name: Build Prospect.Agent
+      run: msbuild /m /p:Configuration=Release ./src/Prospect.Agent/Prospect.Agent.vcxproj
+
+    - name: Build Prospect.Launcher
+      run: dotnet publish -o ./build-app -r win-x64 -c Release -v minimal ./src/Prospect.Launcher/Prospect.Launcher.csproj
