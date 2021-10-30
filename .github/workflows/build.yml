@@ -34,8 +34,11 @@ jobs:
     - name: Build Prospect.Launcher
       run: dotnet publish -o ./build-app -r win-x64 -c Release -v minimal ${{env.PROJ_LAUNCHER}}
 
+    - name: Compress Prospect.Launcher
+      run: 7z a launcher.zip ./build-app/*
+
     - uses: actions/upload-artifact@v2
       with:
         name: Prospect.Launcher
-        path: ./build-app/
+        path: ./launcher.zip
         retention-days: 14
