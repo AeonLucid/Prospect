@@ -44,10 +44,13 @@ namespace Prospect.Launcher
             Write(offset, data);
         }
         
-        public unsafe void Write(int offset, Span<byte> data)
+        public unsafe void Write(int offset, ReadOnlySpan<byte> data)
         {
-            var addr = _baseAddress + offset;
-
+            Write(_baseAddress + offset, data);
+        }
+        
+        public unsafe void Write(IntPtr addr, ReadOnlySpan<byte> data)
+        {
             // Modify protection.
             if (!Kernel32.VirtualProtectEx(_handle, addr, data.Length, 0x40, out var oldProtect))
             {
@@ -56,7 +59,7 @@ namespace Prospect.Launcher
             
             fixed (byte* pData = data)
             {
-                var write = Kernel32.WriteProcessMemory(_handle, _baseAddress + offset, pData, data.Length, out _);
+                var write = Kernel32.WriteProcessMemory(_handle, addr, pData, data.Length, out _);
 
                 // Restore protection.
                 Kernel32.VirtualProtectEx(_handle, addr, data.Length, oldProtect, out _);

@@ -1,5 +1,8 @@
 #include "logger.h"
 
+#include <cstdio>
+#include <Windows.h>
+
 HANDLE h_out = nullptr, h_old_out = nullptr;
 HANDLE h_err = nullptr, h_old_err = nullptr;
 HANDLE h_in = nullptr, h_old_in = nullptr;

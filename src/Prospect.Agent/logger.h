@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstdio>
-#include <Windows.h>
-
 namespace logger
 {
 	void Attach();
@@ -12,4 +9,4 @@ namespace logger
 	bool Print(const char* fmt, ...);
 
 	char ReadKey();
-};
+}

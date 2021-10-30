@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using Prospect.Launcher.Invoke;
 using Prospect.Launcher.Invoke.Structs;
 
@@ -33,6 +32,7 @@ namespace Prospect.Launcher
 
             // 2EA46 = Default
             // A22AB = The Cycle Playtest
+            gameArgs.Add("-empty");
             gameArgs.Add("-log");
             gameArgs.Add("-windowed");
             gameArgs.Add("-noeac");
@@ -51,7 +51,7 @@ namespace Prospect.Launcher
             // Spawn.
             var startupInfo = new StartupInfo();
 
-            if (!Kernel32.CreateProcess(gameBinary, string.Join(' ', gameArgs), ProcessCreationFlags.ZERO_FLAG, ref startupInfo, out var processInfo))
+            if (!Kernel32.CreateProcess(gameBinary, string.Join(' ', gameArgs), ProcessCreationFlags.CREATE_SUSPENDED, ref startupInfo, out var processInfo))
             {
                 Console.WriteLine("Failed to spawn game.");
                 return;
@@ -59,22 +59,21 @@ namespace Prospect.Launcher
             
             Console.WriteLine("Spawned.");
 
-            // Modify.
-            MemoryHelper memory;
-            
-            while ((memory = MemoryHelper.CreateForHandle(processInfo.hProcess, gameBinary)) == null)
-            {
-                Console.WriteLine("Failed to obtain MemoryHelper.");
-                Thread.Sleep(100);
-            }
+            // Inject DLL.
+            var agentPath = Path.Combine(AppContext.BaseDirectory, "Libs", "Prospect.Agent.dll");
 
-            if (!Patches.ChangePlayFabUrl(memory, ".localhost"))
+            if (!Inject.Library(processInfo.dwProcessId, agentPath))
             {
-                Console.WriteLine("Failed to patch playfab url.");
+                Console.WriteLine("Failed to inject library.");
                 return;
             }
+            
+            Console.WriteLine("Injected.");
+            
+            // Resume.
+            Kernel32.ResumeThread(processInfo.hThread);
 
-            Console.WriteLine("Patched.");
+            Console.WriteLine("Resumed.");
         }
     }
 }

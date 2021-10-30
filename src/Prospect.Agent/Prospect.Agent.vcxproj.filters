@@ -15,10 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="main.h">
+    <ClInclude Include="logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="logger.h">
+    <ClInclude Include="SDK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK_Memory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

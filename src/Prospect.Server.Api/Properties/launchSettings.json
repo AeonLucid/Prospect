@@ -1,0 +1,13 @@
+﻿{
+  "profiles": {
+    "Prospect.Server.Api": {
+      "commandName": "Project",
+      "dotnetRunMessages": "true",
+      "launchBrowser": true,
+      "applicationUrl": "https://A22AB.localhost:5555",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

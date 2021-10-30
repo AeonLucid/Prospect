@@ -14,4 +14,14 @@
       <PlatformTarget>x64</PlatformTarget>
     </PropertyGroup>
 
+    <ItemGroup>
+      <Folder Include="Libs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Libs\Prospect.Agent.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

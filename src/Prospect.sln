@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Prospect.Agent", "Prospect.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prospect.Launcher", "Prospect.Launcher\Prospect.Launcher.csproj", "{1C8F4637-9552-4726-818B-196ECE2AE966}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prospect.Server.Api", "Prospect.Server.Api\Prospect.Server.Api.csproj", "{A539B020-8BEC-497F-9176-DC2665D927A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -29,6 +31,14 @@ Global
 		{1C8F4637-9552-4726-818B-196ECE2AE966}.Release|x64.Build.0 = Release|Any CPU
 		{1C8F4637-9552-4726-818B-196ECE2AE966}.Release|x86.ActiveCfg = Release|Any CPU
 		{1C8F4637-9552-4726-818B-196ECE2AE966}.Release|x86.Build.0 = Release|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Debug|x64.Build.0 = Debug|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Debug|x86.Build.0 = Debug|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Release|x64.ActiveCfg = Release|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Release|x64.Build.0 = Release|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Release|x86.ActiveCfg = Release|Any CPU
+		{A539B020-8BEC-497F-9176-DC2665D927A1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
