@@ -23,7 +23,7 @@
       <Content Include="Prospect.Agent.dll">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-        <ExcludeFromSingleFile>false</ExcludeFromSingleFile>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       </Content>
     </ItemGroup>
 

@@ -24,14 +24,6 @@ namespace Prospect.Launcher.Invoke
             IntPtr.Zero, false, dwCreationFlags, IntPtr.Zero, null, ref lpStartupInfo, out lpProcessInformation);
         
         [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool ReadProcessMemory(
-            IntPtr hProcess,
-            IntPtr lpBaseAddress,
-            byte[] lpBuffer,
-            Int32 nSize,
-            out IntPtr lpNumberOfBytesRead);
-        
-        [DllImport("kernel32.dll", SetLastError = true)]
         public static extern unsafe bool WriteProcessMemory(
             IntPtr hProcess,
             IntPtr lpBaseAddress,
@@ -39,9 +31,6 @@ namespace Prospect.Launcher.Invoke
             Int32 nSize,
             out IntPtr lpNumberOfBytesWritten
         );
-        
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, uint flNewProtect, out uint lpflOldProtect);
         
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
