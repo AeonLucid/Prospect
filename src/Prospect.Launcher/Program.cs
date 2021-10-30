@@ -60,7 +60,7 @@ namespace Prospect.Launcher
             Console.WriteLine("Spawned.");
 
             // Inject DLL.
-            var agentPath = Path.Combine(AppContext.BaseDirectory, "Libs", "Prospect.Agent.dll");
+            var agentPath = Path.Combine(AppContext.BaseDirectory, "Prospect.Agent.dll");
 
             if (!Inject.Library(processInfo.dwProcessId, agentPath))
             {

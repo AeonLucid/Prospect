@@ -4,6 +4,11 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net5.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>false</SelfContained>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <PublishReadyToRun>true</PublishReadyToRun>
+        <DebugType>embedded</DebugType>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -15,13 +20,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Libs" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Update="Libs\Prospect.Agent.dll">
+      <Content Include="Prospect.Agent.dll">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>false</ExcludeFromSingleFile>
+      </Content>
     </ItemGroup>
 
 </Project>
