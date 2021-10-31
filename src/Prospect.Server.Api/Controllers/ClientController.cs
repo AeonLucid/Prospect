@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Prospect.Server.Api.Models.Client;
 using Prospect.Server.Api.Models.Client.Data;
+using Prospect.Server.Steam;
 
 namespace Prospect.Server.Api.Controllers
 {
@@ -23,54 +24,58 @@ namespace Prospect.Server.Api.Controllers
             
             if (!string.IsNullOrEmpty(request.SteamTicket))
             {
-                return Ok(new ClientResponse<FServerLoginResult>
+                var ticket = AppTicket.Parse(request.SteamTicket);
+                if (ticket.IsValid && ticket.HasValidSignature)
                 {
-                    Code = 200,
-                    Status = "OK",
-                    Data = new FServerLoginResult
+                    return Ok(new ClientResponse<FServerLoginResult>
                     {
-                        EntityToken = new FEntityTokenResponse
+                        Code = 200,
+                        Status = "OK",
+                        Data = new FServerLoginResult
                         {
-                            Entity = new FEntityKey
+                            EntityToken = new FEntityTokenResponse
                             {
-                                Id = playerIdTwo,
-                                Type = "title_player_account",
-                                TypeString = "title_player_account"
+                                Entity = new FEntityKey
+                                {
+                                    Id = playerIdTwo,
+                                    Type = "title_player_account",
+                                    TypeString = "title_player_account"
+                                },
+                                EntityToken = "RW50aXR5VG9rZW4=",
+                                TokenExpiration = DateTime.UtcNow.AddDays(1),
                             },
-                            EntityToken = "RW50aXR5VG9rZW4=",
-                            TokenExpiration = DateTime.UtcNow.AddDays(1),
-                        },
-                        InfoResultPayload = new FGetPlayerCombinedInfoResultPayload
-                        {
-                            CharacterInventories = new List<object>(),
-                            PlayerProfile = new FPlayerProfileModel
+                            InfoResultPayload = new FGetPlayerCombinedInfoResultPayload
                             {
-                                DisplayName = playerName,
-                                PlayerId = playerIdOne,
-                                PublisherId = publisherId,
-                                TitleId = titleId
+                                CharacterInventories = new List<object>(),
+                                PlayerProfile = new FPlayerProfileModel
+                                {
+                                    DisplayName = playerName,
+                                    PlayerId = playerIdOne,
+                                    PublisherId = publisherId,
+                                    TitleId = titleId
+                                },
+                                UserDataVersion = 0,
+                                UserInventory = new List<object>(),
+                                UserReadOnlyDataVersion = 0
                             },
-                            UserDataVersion = 0,
-                            UserInventory = new List<object>(),
-                            UserReadOnlyDataVersion = 0
-                        },
-                        LastLoginTime = DateTime.UtcNow,
-                        NewlyCreated = false,
-                        PlayFabId = playerIdOne,
-                        SessionTicket = "SOME",
-                        SettingsForUser = new FUserSettings
-                        {
-                            GatherDeviceInfo = true,
-                            GatherFocusInfo = true,
-                            NeedsAttribution = false,
-                        },
-                        TreatmentAssignment = new FTreatmentAssignment
-                        {
-                            Variables = new List<FVariable>(),
-                            Variants = new List<string>()
+                            LastLoginTime = DateTime.UtcNow,
+                            NewlyCreated = false,
+                            PlayFabId = playerIdOne,
+                            SessionTicket = "SOME",
+                            SettingsForUser = new FUserSettings
+                            {
+                                GatherDeviceInfo = true,
+                                GatherFocusInfo = true,
+                                NeedsAttribution = false,
+                            },
+                            TreatmentAssignment = new FTreatmentAssignment
+                            {
+                                Variables = new List<FVariable>(),
+                                Variants = new List<string>()
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
             
             return BadRequest(new ClientResponse
