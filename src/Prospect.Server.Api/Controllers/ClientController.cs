@@ -1,8 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using Prospect.Server.Api.Config;
 using Prospect.Server.Api.Models.Client;
 using Prospect.Server.Api.Models.Client.Data;
+using Prospect.Server.Api.Services.Database;
+using Prospect.Server.Api.Services.Database.Models;
 using Prospect.Server.Steam;
 
 namespace Prospect.Server.Api.Controllers
@@ -11,22 +16,30 @@ namespace Prospect.Server.Api.Controllers
     [ApiController]
     public class ClientController : Controller
     {
+        private readonly PlayFabSettings _settings;
+        private readonly DbUserService _userService;
+        private readonly DbEntityService _entityService;
+
+        public ClientController(IOptions<PlayFabSettings> settings, DbUserService userService, DbEntityService entityService)
+        {
+            _settings = settings.Value;
+            _userService = userService;
+            _entityService = entityService;
+        }
+        
         [HttpPost("LoginWithSteam")]
         [Produces("application/json")]
-        public IActionResult LoginWithSteam(ClientLoginWithSteamRequest request)
+        public async Task<IActionResult> LoginWithSteam(ClientLoginWithSteamRequest request)
         {
-            var playerIdOne = "AAAABBBBCCCCDDDD"; // PlayFabId
-            var playerIdTwo = "0000111122223333"; // EntityId 
-            var playerName = "AeonLucid";
-            
-            var titleId = "A22AB";
-            var publisherId = "850902E5B40508ED";
-            
             if (!string.IsNullOrEmpty(request.SteamTicket))
             {
                 var ticket = AppTicket.Parse(request.SteamTicket);
                 if (ticket.IsValid && ticket.HasValidSignature)
                 {
+                    var userSteamId = ticket.SteamId.ToString();
+                    var user = await _userService.FindOrCreateAsync(PlayFabUserAuthType.Steam, userSteamId);
+                    var entity = await _entityService.FindOrCreateAsync(user.Id);
+                    
                     return Ok(new ClientResponse<FServerLoginResult>
                     {
                         Code = 200,
@@ -37,7 +50,7 @@ namespace Prospect.Server.Api.Controllers
                             {
                                 Entity = new FEntityKey
                                 {
-                                    Id = playerIdTwo,
+                                    Id = entity.Id,
                                     Type = "title_player_account",
                                     TypeString = "title_player_account"
                                 },
@@ -49,10 +62,10 @@ namespace Prospect.Server.Api.Controllers
                                 CharacterInventories = new List<object>(),
                                 PlayerProfile = new FPlayerProfileModel
                                 {
-                                    DisplayName = playerName,
-                                    PlayerId = playerIdOne,
-                                    PublisherId = publisherId,
-                                    TitleId = titleId
+                                    DisplayName = user.DisplayName,
+                                    PlayerId = user.Id,
+                                    PublisherId = _settings.PublisherId,
+                                    TitleId = _settings.TitleId
                                 },
                                 UserDataVersion = 0,
                                 UserInventory = new List<object>(),
@@ -60,7 +73,7 @@ namespace Prospect.Server.Api.Controllers
                             },
                             LastLoginTime = DateTime.UtcNow,
                             NewlyCreated = false,
-                            PlayFabId = playerIdOne,
+                            PlayFabId = user.Id,
                             SessionTicket = "SOME",
                             SettingsForUser = new FUserSettings
                             {
