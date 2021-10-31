@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Prospect.Server.Api.Middleware;
 using Serilog;
 
 namespace Prospect.Server.Api
@@ -21,9 +22,8 @@ namespace Prospect.Server.Api
             }
             
             app.UseSerilogRequestLogging();
-            
+            app.UseMiddleware<RequestLoggerMiddleware>();
             app.UseRouting();
-
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
