@@ -1,6 +1,10 @@
 name: Build
 
-on: [push]
+on:
+  push:
+    paths:
+      - ./src/Prospect.Agent/**
+      - ./src/Prospect.Launcher/**
 
 env:
   PROJ_AGENT: ./src/Prospect.Agent/Prospect.Agent.vcxproj
