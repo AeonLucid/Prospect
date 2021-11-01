@@ -1,32 +1,42 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Prospect.Server.Api.Config;
 using Prospect.Server.Api.Models.Client;
 using Prospect.Server.Api.Models.Client.Data;
+using Prospect.Server.Api.Services.Auth;
+using Prospect.Server.Api.Services.Auth.User;
 using Prospect.Server.Api.Services.Database;
 using Prospect.Server.Api.Services.Database.Models;
 using Prospect.Server.Steam;
 
 namespace Prospect.Server.Api.Controllers
 {
-    [Route("Client")]
     [ApiController]
+    [Route("Client")]
+    [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public class ClientController : Controller
     {
         private readonly PlayFabSettings _settings;
+        private readonly AuthTokenService _authTokenService;
         private readonly DbUserService _userService;
         private readonly DbEntityService _entityService;
 
-        public ClientController(IOptions<PlayFabSettings> settings, DbUserService userService, DbEntityService entityService)
+        public ClientController(IOptions<PlayFabSettings> settings, 
+            AuthTokenService authTokenService, 
+            DbUserService userService, 
+            DbEntityService entityService)
         {
             _settings = settings.Value;
+            _authTokenService = authTokenService;
             _userService = userService;
             _entityService = entityService;
         }
         
+        [AllowAnonymous]
         [HttpPost("LoginWithSteam")]
         [Produces("application/json")]
         public async Task<IActionResult> LoginWithSteam(ClientLoginWithSteamRequest request)
@@ -37,8 +47,12 @@ namespace Prospect.Server.Api.Controllers
                 if (ticket.IsValid && ticket.HasValidSignature)
                 {
                     var userSteamId = ticket.SteamId.ToString();
+                    
                     var user = await _userService.FindOrCreateAsync(PlayFabUserAuthType.Steam, userSteamId);
+                    var userTicket = _authTokenService.Generate(user);
+                    
                     var entity = await _entityService.FindOrCreateAsync(user.Id);
+                    var entityTicket = _authTokenService.Generate(entity);
                     
                     return Ok(new ClientResponse<FServerLoginResult>
                     {
@@ -54,8 +68,8 @@ namespace Prospect.Server.Api.Controllers
                                     Type = "title_player_account",
                                     TypeString = "title_player_account"
                                 },
-                                EntityToken = "RW50aXR5VG9rZW4=",
-                                TokenExpiration = DateTime.UtcNow.AddDays(1),
+                                EntityToken = entityTicket,
+                                TokenExpiration = DateTime.UtcNow.AddDays(6), // TODO:
                             },
                             InfoResultPayload = new FGetPlayerCombinedInfoResultPayload
                             {
@@ -71,10 +85,10 @@ namespace Prospect.Server.Api.Controllers
                                 UserInventory = new List<object>(),
                                 UserReadOnlyDataVersion = 0
                             },
-                            LastLoginTime = DateTime.UtcNow,
-                            NewlyCreated = false,
+                            LastLoginTime = DateTime.UtcNow, // TODO:
+                            NewlyCreated = false, // TODO:
                             PlayFabId = user.Id,
-                            SessionTicket = "SOME",
+                            SessionTicket = userTicket,
                             SettingsForUser = new FUserSettings
                             {
                                 GatherDeviceInfo = true,
@@ -114,7 +128,7 @@ namespace Prospect.Server.Api.Controllers
 
         [HttpPost("UpdateUserTitleDisplayName")]
         [Produces("application/json")]
-        public IActionResult AddGenericId(FUpdateUserTitleDisplayNameRequest request)
+        public IActionResult UpdateUserTitleDisplayName(FUpdateUserTitleDisplayNameRequest request)
         {
             return Ok(new ClientResponse<FUpdateUserTitleDisplayNameResult>
             {
