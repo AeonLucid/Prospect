@@ -8,9 +8,11 @@ using Prospect.Server.Api.Config;
 using Prospect.Server.Api.Models.Client;
 using Prospect.Server.Api.Models.Client.Data;
 using Prospect.Server.Api.Services.Auth;
+using Prospect.Server.Api.Services.Auth.Extensions;
 using Prospect.Server.Api.Services.Auth.User;
 using Prospect.Server.Api.Services.Database;
 using Prospect.Server.Api.Services.Database.Models;
+using Prospect.Server.Api.Services.UserData;
 using Prospect.Server.Steam;
 
 namespace Prospect.Server.Api.Controllers
@@ -24,16 +26,22 @@ namespace Prospect.Server.Api.Controllers
         private readonly AuthTokenService _authTokenService;
         private readonly DbUserService _userService;
         private readonly DbEntityService _entityService;
+        private readonly UserDataService _userDataService;
+        private readonly TitleDataService _titleDataService;
 
         public ClientController(IOptions<PlayFabSettings> settings, 
             AuthTokenService authTokenService, 
             DbUserService userService, 
-            DbEntityService entityService)
+            DbEntityService entityService,
+            UserDataService userDataService,
+            TitleDataService titleDataService)
         {
             _settings = settings.Value;
             _authTokenService = authTokenService;
             _userService = userService;
             _entityService = entityService;
+            _userDataService = userDataService;
+            _titleDataService = titleDataService;
         }
         
         [AllowAnonymous]
@@ -49,10 +57,12 @@ namespace Prospect.Server.Api.Controllers
                     var userSteamId = ticket.SteamId.ToString();
                     
                     var user = await _userService.FindOrCreateAsync(PlayFabUserAuthType.Steam, userSteamId);
-                    var userTicket = _authTokenService.Generate(user);
-                    
                     var entity = await _entityService.FindOrCreateAsync(user.Id);
-                    var entityTicket = _authTokenService.Generate(entity);
+                    
+                    var userTicket = _authTokenService.GenerateUser(entity);
+                    var entityTicket = _authTokenService.GenerateEntity(entity);
+
+                    await _userDataService.InitAsync(user.Id);
                     
                     return Ok(new ClientResponse<FServerLoginResult>
                     {
@@ -143,15 +153,18 @@ namespace Prospect.Server.Api.Controllers
 
         [HttpPost("GetUserData")]
         [Produces("application/json")]
-        public IActionResult GetUserData(FGetUserDataRequest request)
+        public async Task<IActionResult> GetUserData(FGetUserDataRequest request)
         {
+            var userId = User.FindAuthUserId();
+            var userData = await _userDataService.FindAsync(userId, request.PlayFabId, request.Keys);
+            
             return Ok(new ClientResponse<FGetUserDataResult>
             {
                 Code = 200,
                 Status = "OK",
                 Data = new FGetUserDataResult
                 {
-                    Data = new Dictionary<string, FUserDataRecord>(),
+                    Data = userData,
                     DataVersion = 0
                 }
             });
@@ -185,29 +198,29 @@ namespace Prospect.Server.Api.Controllers
                 {
                     Inventory = new List<FItemInstance>
                     {
-                        new FItemInstance
-                        {
-                            ItemId = "Helmet_03",
-                            ItemInstanceId = "0102030405060708",
-                            ItemClass = "Helmet",
-                            PurchaseDate = DateTime.Now.AddDays(-1),
-                            CatalogVersion = "StaticItems",
-                            DisplayName = "Helmet",
-                            UnitPrice = 0,
-                            CustomData = new Dictionary<string, string>
-                            {
-                                ["insurance"] = "None",
-                                ["mods"] = "{\"m\":[]}",
-                                ["vanity_misc_data"] = "{\"v\":\"\",\"s\":\"\",\"l\":3,\"a\":1,\"d\":300}"
-                            }
-                        }
+                        // new FItemInstance
+                        // {
+                        //     ItemId = "Helmet_03",
+                        //     ItemInstanceId = "0102030405060708",
+                        //     ItemClass = "Helmet",
+                        //     PurchaseDate = DateTime.Now.AddDays(-1),
+                        //     CatalogVersion = "StaticItems",
+                        //     DisplayName = "Helmet",
+                        //     UnitPrice = 0,
+                        //     CustomData = new Dictionary<string, string>
+                        //     {
+                        //         ["insurance"] = "None",
+                        //         ["mods"] = "{\"m\":[]}",
+                        //         ["vanity_misc_data"] = "{\"v\":\"\",\"s\":\"\",\"l\":3,\"a\":1,\"d\":300}"
+                        //     }
+                        // }
                     },
                     VirtualCurrency = new Dictionary<string, int>
                     {
                         ["AE"] = 0,
                         ["AS"] = 0,
                         ["AU"] = 0,
-                        ["SC"] = 12345
+                        ["SC"] = 30000
                     },
                     VirtualCurrencyRechargeTimes = new Dictionary<string, FVirtualCurrencyRechargeTime>()
                 }
@@ -224,7 +237,7 @@ namespace Prospect.Server.Api.Controllers
                 Status = "OK",
                 Data = new FGetTitleDataResult()
                 {
-                    Data = new Dictionary<string, string>()
+                    Data = _titleDataService.Find(request.Keys)
                 }
             });
         }

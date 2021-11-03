@@ -8,6 +8,7 @@ using Prospect.Server.Api.Middleware;
 using Prospect.Server.Api.Services.Auth;
 using Prospect.Server.Api.Services.Auth.User;
 using Prospect.Server.Api.Services.Database;
+using Prospect.Server.Api.Services.UserData;
 using Serilog;
 
 namespace Prospect.Server.Api
@@ -28,13 +29,17 @@ namespace Prospect.Server.Api
             services.Configure<PlayFabSettings>(Configuration.GetSection(nameof(PlayFabSettings)));
 
             services.AddSingleton<AuthTokenService>();
+            services.AddSingleton<UserDataService>();
+            services.AddSingleton<TitleDataService>();
+            
             services.AddSingleton<DbUserService>();
             services.AddSingleton<DbEntityService>();
+            
+            services.AddSingleton<DbUserDataService>();
 
-            services.AddAuthentication(options =>
+            services.AddAuthentication(_ =>
                 {
-                    options.DefaultAuthenticateScheme = UserAuthenticationOptions.DefaultScheme;
-                    options.DefaultChallengeScheme = UserAuthenticationOptions.DefaultScheme;
+                    
                 })
                 .AddUserAuthentication(_ => {})
                 .AddEntityAuthentication(_ => {});

@@ -8,13 +8,13 @@ namespace Prospect.Server.Api.Services.Database
 {
     public class DbEntityService : BaseDbService<PlayFabEntity>
     {
-        public DbEntityService(IOptions<DatabaseSettings> settings) : base(settings, nameof(DbEntityService))
+        public DbEntityService(IOptions<DatabaseSettings> settings) : base(settings, nameof(PlayFabEntity))
         {
         }
 
         public async Task<PlayFabEntity> FindAsync(string userId)
         {
-            return await Collection.Find(user => user.UserId == userId).FirstOrDefaultAsync();
+            return await Collection.Find(user => user.UserId == userId).SingleOrDefaultAsync();
         }
 
         private async Task<PlayFabEntity> CreateAsync(string userId)

@@ -17,7 +17,6 @@ namespace Prospect.Server.Api.Models.Client.Data
         /// </summary>
         [JsonPropertyName("Permission")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public UserDataPermission Permission { get; set; }
         
         /// <summary>

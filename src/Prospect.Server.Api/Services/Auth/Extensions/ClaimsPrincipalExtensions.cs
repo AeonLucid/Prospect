@@ -5,9 +5,14 @@ namespace Prospect.Server.Api.Services.Auth.Extensions
 {
     public static class ClaimsPrincipalExtensions
     {
-        public static string FindAuthId(this ClaimsPrincipal principal)
+        public static string FindAuthUserId(this ClaimsPrincipal principal)
         {
-            return Find(principal, AuthClaimTypes.Id);
+            return Find(principal, AuthClaimTypes.UserId);
+        }
+        
+        public static string FindAuthEntityId(this ClaimsPrincipal principal)
+        {
+            return Find(principal, AuthClaimTypes.EntityId);
         }
         
         public static string FindAuthType(this ClaimsPrincipal principal)
