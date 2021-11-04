@@ -25,7 +25,14 @@ namespace Prospect.Server.Api.Middleware
 
             if (context.Request.Method == "POST")
             {
-                _logger.LogDebug("URL {Url} Body {Body}", context.Request.GetDisplayUrl(), body);
+                var requestId = "NULL";
+                
+                if (context.Request.Headers.TryGetValue("X-RequestID", out var requestIdValues))
+                {
+                    requestId = requestIdValues.ToString();
+                }
+                
+                _logger.LogDebug("URL {Url} RequestId {RequestId} Body {Body}", context.Request.GetDisplayUrl(), requestId, body);
             }
             
             await _next(context);

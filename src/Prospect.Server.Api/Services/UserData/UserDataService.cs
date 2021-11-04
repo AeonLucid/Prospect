@@ -117,5 +117,66 @@ namespace Prospect.Server.Api.Services.UserData
 
             return result;
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="currentUserId">
+        ///     The authenticated user id.
+        /// </param>
+        /// <param name="requestUserId">
+        ///     The requested user id.
+        /// </param>
+        /// <param name="changes"></param>
+        /// <returns></returns>
+        public async Task UpdateAsync(
+            string currentUserId, 
+            string requestUserId, 
+            Dictionary<string, string> changes)
+        {
+            if (changes.Count == 0)
+            {
+                return;
+            }
+            
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                throw new ArgumentNullException(nameof(currentUserId));
+            }
+            
+            if (requestUserId == null)
+            {
+                requestUserId = currentUserId;
+            }
+
+            // Whether we are updating someone else.
+            var other = currentUserId != requestUserId;
+            
+            foreach (var (key, value) in changes)
+            {
+                var data = await _dbUserDataService.FindAsync(currentUserId, key);
+                if (data == null)
+                {
+                    if (other)
+                    {
+                        _logger.LogWarning("User {PlayFabId} attempted to update non-existing key {Key} of another user {PlayFabIdOther}", currentUserId, key, requestUserId);
+                    }
+                    else
+                    {
+                        await _dbUserDataService.InsertAsync(currentUserId, key, value, false);
+                    }
+                    
+                    continue;
+                }
+                
+                if (!data.Public && other)
+                {
+                    _logger.LogWarning("User {PlayFabId} attempted to update non-public key {Key} of another user {PlayFabIdOther}", currentUserId, key, data.PlayFabId);
+                    continue;
+                }
+                
+                await _dbUserDataService.UpdateValueAsync(data.Id, value);
+            }
+        }
     }
 }

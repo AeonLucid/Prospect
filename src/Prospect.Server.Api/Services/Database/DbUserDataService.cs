@@ -47,5 +47,14 @@ namespace Prospect.Server.Api.Services.Database
             
             return await query.ToCursorAsync();
         }
+
+        public async Task UpdateValueAsync(string dataId, string value)
+        {
+            var update = Builders<PlayFabUserData>.Update
+                .Set(data => data.Value, value)
+                .Set(data => data.LastUpdated, DateTime.UtcNow);
+            
+            await Collection.UpdateOneAsync(data => data.Id == dataId, update);
+        }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Prospect.Server.Api.Config;
+using Prospect.Server.Api.Converters;
 using Prospect.Server.Api.Middleware;
 using Prospect.Server.Api.Services.Auth;
 using Prospect.Server.Api.Services.Auth.User;
@@ -44,7 +45,10 @@ namespace Prospect.Server.Api
                 .AddUserAuthentication(_ => {})
                 .AddEntityAuthentication(_ => {});
             
-            services.AddControllers();
+            services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new DateTimeConverter());
+            });
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

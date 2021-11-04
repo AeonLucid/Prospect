@@ -38,12 +38,12 @@ namespace Prospect.Server.Api.Services.Auth
             return _tokenHandler.WriteToken(token);
         }
 
-        public string GenerateUser(PlayFabEntity user)
+        public string GenerateUser(PlayFabEntity entity)
         {
             return CreateToken(new[]
             {
-                new Claim(AuthClaimTypes.UserId, user.UserId),
-                new Claim(AuthClaimTypes.EntityId, user.Id),
+                new Claim(AuthClaimTypes.UserId, entity.UserId),
+                new Claim(AuthClaimTypes.EntityId, entity.Id),
                 new Claim(AuthClaimTypes.Type, AuthType.User),
             });
         }
@@ -52,6 +52,7 @@ namespace Prospect.Server.Api.Services.Auth
         {
             return CreateToken(new[]
             {
+                new Claim(AuthClaimTypes.UserId, entity.UserId),
                 new Claim(AuthClaimTypes.EntityId, entity.Id),
                 new Claim(AuthClaimTypes.Type, AuthType.Entity),
             });

@@ -19,7 +19,6 @@ namespace Prospect.Server.Api.Controllers
 {
     [ApiController]
     [Route("Client")]
-    [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public class ClientController : Controller
     {
         private readonly PlayFabSettings _settings;
@@ -127,17 +126,20 @@ namespace Prospect.Server.Api.Controllers
 
         [HttpPost("AddGenericID")]
         [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
         public IActionResult AddGenericId(FAddGenericIDRequest request)
         {
-            return Ok(new ClientResponse
+            return Ok(new ClientResponse<object>
             {
                 Code = 200,
-                Status = "OK"
+                Status = "OK",
+                Data = new object()
             });
         }
 
         [HttpPost("UpdateUserTitleDisplayName")]
         [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
         public IActionResult UpdateUserTitleDisplayName(FUpdateUserTitleDisplayNameRequest request)
         {
             return Ok(new ClientResponse<FUpdateUserTitleDisplayNameResult>
@@ -151,8 +153,28 @@ namespace Prospect.Server.Api.Controllers
             });
         }
 
+        [HttpPost("UpdateUserData")]
+        [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
+        public async Task<IActionResult> UpdateUserData(FUpdateUserDataRequest request)
+        {
+            var userId = User.FindAuthUserId();
+            await _userDataService.UpdateAsync(userId, request.PlayFabId, request.Data);
+            
+            return Ok(new ClientResponse<FUpdateUserDataResult>
+            {
+                Code = 200,
+                Status = "OK",
+                Data = new FUpdateUserDataResult
+                {
+                    DataVersion = 0
+                }
+            });
+        }
+
         [HttpPost("GetUserData")]
         [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
         public async Task<IActionResult> GetUserData(FGetUserDataRequest request)
         {
             var userId = User.FindAuthUserId();
@@ -172,6 +194,7 @@ namespace Prospect.Server.Api.Controllers
 
         [HttpPost("GetUserReadOnlyData")]
         [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
         public IActionResult GetUserReadOnlyData(FGetUserDataRequest request)
         {
             return Ok(new ClientResponse<FGetUserDataResult>
@@ -188,6 +211,7 @@ namespace Prospect.Server.Api.Controllers
 
         [HttpPost("GetUserInventory")]
         [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
         public IActionResult GetUserReadOnlyData(FGetUserInventoryRequest request)
         {
             return Ok(new ClientResponse<FGetUserInventoryResult>
@@ -229,6 +253,7 @@ namespace Prospect.Server.Api.Controllers
 
         [HttpPost("GetTitleData")]
         [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
         public IActionResult GetTitleData(FGetTitleDataRequest request)
         {
             return Ok(new ClientResponse<FGetTitleDataResult>
