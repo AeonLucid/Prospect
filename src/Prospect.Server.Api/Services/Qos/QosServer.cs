@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Buffers.Binary;
+using System.Net;
 using System.Net.Sockets;
 
 namespace Prospect.Server.Api.Services.Qos;
@@ -43,7 +44,7 @@ public class QosServer : IAsyncDisposable
             
                 _logger.LogInformation("Received {Data} from {Address}", result.Buffer, result.RemoteEndPoint);
 
-                if (result.Buffer.Length == 22)
+                if (result.Buffer.Length == 22 && BinaryPrimitives.ReadUInt64LittleEndian(result.Buffer) == 0xFFFFFFFF)
                 {
                     // The server will reply with a single datagram, with the message contents having the
                     // first 2 bytes "flipped" to 0x0000 (0000 0000 0000 0000).
