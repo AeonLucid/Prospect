@@ -6,10 +6,13 @@
 #include "SDK.h"
 #include "SDK_Memory.h"
 
+// Pointers are for 211025.1143
+// https://steamdb.info/depot/1600361/history/?changeid=M:720055916602660127
+
 /**
  * Variable offset, find with "STOPMOVIECAPTURE", scroll up.
  */
-constexpr uintptr_t OffsetGMalloc = 0x5C9A3F8;
+constexpr uintptr_t OffsetGMalloc = 0x5C9D478;
 
 /**
  * Function offset, find with "?sdk=".

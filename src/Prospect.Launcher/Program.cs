@@ -10,8 +10,10 @@ namespace Prospect.Launcher
     {
         /// <summary>
         ///     Steam AppId.
+        ///     - https://steamdb.info/app/480/
+        ///     - https://steamdb.info/app/1600360/
         /// </summary>
-        private const string AppId = "1600360";
+        private const string AppId = "480";
         
         /// <summary>
         ///     Executable name of the game.
@@ -43,10 +45,7 @@ namespace Prospect.Launcher
             // Ensure "steam_appid.txt" exists, to fix steam authentication.
             var steamAppId = Path.Combine(gamePath, "steam_appid.txt");
 
-            if (!File.Exists(steamAppId))
-            {
-                File.WriteAllText(steamAppId, AppId);
-            }
+            File.WriteAllText(steamAppId, AppId);
             
             // Spawn.
             var startupInfo = new StartupInfo();
