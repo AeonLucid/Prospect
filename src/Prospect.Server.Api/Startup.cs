@@ -3,6 +3,7 @@ using Prospect.Server.Api.Converters;
 using Prospect.Server.Api.Middleware;
 using Prospect.Server.Api.Services.Auth;
 using Prospect.Server.Api.Services.Database;
+using Prospect.Server.Api.Services.Qos;
 using Prospect.Server.Api.Services.UserData;
 using Serilog;
 
@@ -32,6 +33,9 @@ public class Startup
             
         services.AddSingleton<DbUserDataService>();
 
+        services.AddHostedService<QosService>();
+        services.AddSingleton<QosServer>();
+        
         services.AddAuthentication(_ =>
             {
                     
