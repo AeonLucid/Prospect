@@ -21,10 +21,10 @@ This repository is just something I work on when bored, do not expect much at th
 If you are enrolled into the closed beta, you can download a fresh copy with [SteamRE/DepotDownloader](https://github.com/SteamRE/DepotDownloader).
 
 ```
-.\DepotDownloader.exe -app 1600360 -depot 1600361 -manifest 8099885118311987420 -username <username>
+.\DepotDownloader.exe -app 1600360 -depot 1600361 -manifest 720055916602660127 -username <username>
 ```
 
-This gives you the [exact copy](https://steamdb.info/depot/1600361/history/?changeid=M:8099885118311987420) that is used for this repository.
+This gives you the [exact copy](https://steamdb.info/depot/1600361/history/?changeid=M:720055916602660127) that is used for this repository.
 
 ### 2. Download the latest launcher
 
@@ -32,7 +32,7 @@ Navigate to the [latest successful](https://github.com/AeonLucid/Prospect/action
 
 Run the launcher with the first argument being the path of step 1.
 ```
-./Prospect.Launcher.exe "E:\Depots\depots\1600361\7573497"
+./Prospect.Launcher.exe "E:\Depots\depots\1600361\7593680"
 ```
 
 ### 3. Clone the repository

@@ -14,7 +14,6 @@ namespace Prospect.Server.Steam
         public static bool VerifySignature(byte[] data, byte[] signature)
         {
             var rsa = new RSACryptoServiceProvider();
-            var hash = new SHA1Managed();
             
             rsa.ImportFromPem(SystemCertificate);
             
@@ -24,7 +23,7 @@ namespace Prospect.Server.Steam
                 return false;
             }
             
-            var dataHashed = hash.ComputeHash(data);
+            var dataHashed = SHA1.HashData(data);
             var dataVerified = rsa.VerifyHash(dataHashed, CryptoConfig.MapNameToOID("SHA1")!, signature);
 
             return dataVerified;
