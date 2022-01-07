@@ -5,8 +5,8 @@ namespace Prospect.Server.Api.Models.CloudScript.Data;
 public class FYFactionsContractsData
 {
     [JsonPropertyName("boards")]
-    public List<FYFactionContractsData> Boards { get; set; }
+    public List<FYFactionContractsData> Boards { get; set; } = null!;
 
     [JsonPropertyName("lastBoardRefreshTimeUtc")]
-    public FYTimestamp LastBoardRefreshTimeUtc { get; set; }
+    public FYTimestamp LastBoardRefreshTimeUtc { get; set; } = null!;
 }

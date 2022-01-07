@@ -16,12 +16,12 @@ public class FUserDataRecord
     /// </summary>
     [JsonPropertyName("Permission")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public UserDataPermission Permission { get; set; }
+    public UserDataPermission? Permission { get; set; }
         
     /// <summary>
     ///     [optional] Data stored for the specified user data key.
     /// </summary>
     [JsonPropertyName("Value")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Value { get; set; }
+    public string? Value { get; set; }
 }

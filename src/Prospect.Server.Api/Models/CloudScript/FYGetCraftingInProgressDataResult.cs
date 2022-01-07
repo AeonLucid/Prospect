@@ -6,11 +6,11 @@ namespace Prospect.Server.Api.Models.CloudScript;
 public class FYGetCraftingInProgressDataResult
 {
     [JsonPropertyName("userId")]
-    public string UserId { get; set; }
+    public string UserId { get; set; } = null!;
         
     [JsonPropertyName("error")]
-    public string Error { get; set; }
+    public string Error { get; set; } = null!;
         
     [JsonPropertyName("itemCurrentlyBeingCrafted")]
-    public FYItemCurrentlyBeingCrafted ItemCurrentlyBeingCrafted { get; set; }
+    public FYItemCurrentlyBeingCrafted ItemCurrentlyBeingCrafted { get; set; } = null!;
 }

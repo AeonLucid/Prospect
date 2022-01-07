@@ -9,19 +9,19 @@ public class FLogStatement
     /// </summary>
     [JsonPropertyName("Data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public object Data { get; set; }
+    public object? Data { get; set; }
         
     /// <summary>
     ///     [optional] 'Debug', 'Info', or 'Error'
     /// </summary>
     [JsonPropertyName("Level")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Level { get; set; }
+    public string? Level { get; set; }
         
     /// <summary>
     ///     [optional] undefined
     /// </summary>
     [JsonPropertyName("Message")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Message { get; set; }
+    public string? Message { get; set; }
 }

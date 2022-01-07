@@ -10,19 +10,19 @@ public class FScriptExecutionError
     /// </summary>
     [JsonPropertyName("Error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Error { get; set; }
+    public string? Error { get; set; }
         
     /// <summary>
     ///     [optional] Details about the error
     /// </summary>
     [JsonPropertyName("Message")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string Message { get; set; }
+    public string? Message { get; set; }
         
     /// <summary>
     ///     [optional] Point during the execution of the script at which the error occurred, if any
     /// </summary>
     [JsonPropertyName("StackTrace")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string StackTrace { get; set; }
+    public string? StackTrace { get; set; }
 }

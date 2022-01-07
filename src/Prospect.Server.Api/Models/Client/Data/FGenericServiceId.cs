@@ -8,11 +8,11 @@ public class FGenericServiceId
     ///     Name of the service for which the player has a unique identifier.
     /// </summary>
     [JsonPropertyName("ServiceName")]
-    public string ServiceName { get; set; }
+    public string ServiceName { get; set; } = null!;
         
     /// <summary>
     ///     Unique identifier of the player in that service.
     /// </summary>
     [JsonPropertyName("UserId")]
-    public string UserId { get; set; }
+    public string UserId { get; set; } = null!;
 }

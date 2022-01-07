@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Prospect.Server.Api.Models.Client;
+namespace Prospect.Server.Api.Models.Multiplayer;
 
-public class FUpdateUserTitleDisplayNameRequest
+public class FListQosServersForTitleRequest
 {
     /// <summary>
     ///     [optional] The optional custom tags associated with the request (e.g. build number, external trace identifiers, etc.).
@@ -10,10 +10,11 @@ public class FUpdateUserTitleDisplayNameRequest
     [JsonPropertyName("CustomTags")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, string>? CustomTags { get; set; }
-
+        
     /// <summary>
-    ///     New title display name for the user - must be between 3 and 25 characters.
+    ///     [optional] Indicates that the response should contain Qos servers for all regions, including those where there are no builds
+    ///     deployed for the title.
     /// </summary>
-    [JsonPropertyName("DisplayName")]
-    public string DisplayName { get; set; } = null!;
+    [JsonPropertyName("IncludeAllRegions")]
+    public bool? IncludeAllRegions { get; set; }
 }

@@ -10,27 +10,27 @@ public class FExecuteFunctionRequest
     /// </summary>
     [JsonPropertyName("CustomTags")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, string> CustomTags { get; set; }
+    public Dictionary<string, string>? CustomTags { get; set; }
         
     /// <summary>
     ///     [optional] The entity to perform this action on.
     /// </summary>
     [JsonPropertyName("Entity")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FEntityKey Entity { get; set; }
+    public FEntityKey? Entity { get; set; }
         
     /// <summary>
     ///     The name of the CloudScript function to execute
     /// </summary>
     [JsonPropertyName("FunctionName")]
-    public string FunctionName { get; set; }
+    public string? FunctionName { get; set; }
         
     /// <summary>
     ///     [optional] Object that is passed in to the function as the FunctionArgument field of the FunctionExecutionContext data structure
     /// </summary>
     [JsonPropertyName("FunctionParameter")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string FunctionParameter { get; set; }
+    public string? FunctionParameter { get; set; }
         
     /// <summary>
     ///     [optional] Generate a 'entity_executed_cloudscript_function' PlayStream event containing the results of the function execution and

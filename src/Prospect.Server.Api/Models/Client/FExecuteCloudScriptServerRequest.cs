@@ -10,20 +10,20 @@ public class FExecuteCloudScriptServerRequest
     /// </summary>
     [JsonPropertyName("CustomTags")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, string> CustomTags { get; set; }
+    public Dictionary<string, string>? CustomTags { get; set; }
 
     /// <summary>
     ///     The name of the CloudScript function to execute
     /// </summary>
     [JsonPropertyName("FunctionName")]
-    public string FunctionName { get; set; }
+    public string FunctionName { get; set; } = null!;
 
     /// <summary>
     ///     [optional] Object that is passed in to the function as the first argument
     /// </summary>
     [JsonPropertyName("FunctionParameter")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string FunctionParameter { get; set; }
+    public string? FunctionParameter { get; set; }
 
     /// <summary>
     ///     [optional] Generate a 'player_executed_cloudscript' PlayStream event containing the results of the function execution and other
@@ -32,12 +32,12 @@ public class FExecuteCloudScriptServerRequest
     [JsonPropertyName("GeneratePlayStreamEvent")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool? GeneratePlayStreamEvent { get; set; }
-        
+
     /// <summary>
     ///     The unique user identifier for the player on whose behalf the script is being run
     /// </summary>
     [JsonPropertyName("PlayFabId")]
-    public string PlayFabId { get; set; }
+    public string PlayFabId { get; set; } = null!;
         
     /// <summary>
     ///     [optional] Option for which revision of the CloudScript to execute. 'Latest' executes the most recently created revision, 'Live'

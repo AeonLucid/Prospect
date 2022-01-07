@@ -11,13 +11,13 @@ public class FServerLoginResult
     /// </summary>
     [JsonPropertyName("EntityToken")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FEntityTokenResponse EntityToken { get; set; }
+    public FEntityTokenResponse? EntityToken { get; set; }
         
     /// <summary>
     ///     [optional] Results for requested info.
     /// </summary>
     [JsonPropertyName("InfoResultPayload")]
-    public FGetPlayerCombinedInfoResultPayload InfoResultPayload { get; set; }
+    public FGetPlayerCombinedInfoResultPayload? InfoResultPayload { get; set; }
         
     /// <summary>
     ///     [optional] The time of this user's previous login. If there was no previous login, then it's DateTime.MinValue
@@ -37,26 +37,26 @@ public class FServerLoginResult
     /// </summary>
     [JsonPropertyName("PlayFabId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string PlayFabId { get; set; }
+    public string? PlayFabId { get; set; }
         
     /// <summary>
     ///     [optional] Unique token authorizing the user and game at the server level, for the current session.
     /// </summary>
     [JsonPropertyName("SessionTicket")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string SessionTicket { get; set; }
+    public string? SessionTicket { get; set; }
         
     /// <summary>
     ///     [optional] Settings specific to this user.
     /// </summary>
     [JsonPropertyName("SettingsForUser")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FUserSettings SettingsForUser { get; set; }
+    public FUserSettings? SettingsForUser { get; set; }
 
     /// <summary>
     ///     [optional] The experimentation treatments for this user at the time of login.
     /// </summary>
     [JsonPropertyName("TreatmentAssignment")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FTreatmentAssignment TreatmentAssignment { get; set; }
+    public FTreatmentAssignment? TreatmentAssignment { get; set; }
 }

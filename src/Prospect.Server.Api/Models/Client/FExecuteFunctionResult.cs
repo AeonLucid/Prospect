@@ -10,8 +10,8 @@ public class FExecuteFunctionResult
     /// </summary>
     [JsonPropertyName("Error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FFunctionExecutionError Error { get; set; }
-        
+    public FFunctionExecutionError? Error { get; set; }
+
     /// <summary>
     ///     The amount of time the function took to execute
     /// </summary>
@@ -22,14 +22,14 @@ public class FExecuteFunctionResult
     ///     [optional] The name of the function that executed
     /// </summary>
     [JsonPropertyName("FunctionName")]
-    public string FunctionName { get; set; }
+    public string? FunctionName { get; set; }
         
     /// <summary>
     ///     [optional] The object returned from the function, if any
     /// </summary>
     [JsonPropertyName("FunctionResult")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public object FunctionResult { get; set; }
+    public object? FunctionResult { get; set; }
         
     /// <summary>
     ///     [optional] Flag indicating if the FunctionResult was too large and was subsequently dropped from this event.

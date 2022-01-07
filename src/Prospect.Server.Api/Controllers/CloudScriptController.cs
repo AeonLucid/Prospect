@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Net.Mime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Prospect.Server.Api.Models.Client;
 using Prospect.Server.Api.Models.CloudScript;
@@ -21,7 +22,7 @@ public class CloudScriptController : Controller
     }
         
     [HttpPost("ExecuteFunction")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     public IActionResult ExecuteFunction(FExecuteFunctionRequest request)
     {
         _logger.LogInformation("Executing function {Function}", request.FunctionName);

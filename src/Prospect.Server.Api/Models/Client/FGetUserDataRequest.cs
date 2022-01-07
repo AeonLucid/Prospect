@@ -9,18 +9,18 @@ public class FGetUserDataRequest
     ///     version in the system is greater than this.
     /// </summary>
     [JsonPropertyName("IfChangedFromDataVersion")]
-    public List<uint> IfChangedFromDataVersion { get; set; }
+    public List<uint>? IfChangedFromDataVersion { get; set; }
         
     /// <summary>
     ///     [optional] List of unique keys to load from.
     /// </summary>
     [JsonPropertyName("Keys")]
-    public List<string> Keys { get; set; }
+    public List<string>? Keys { get; set; }
         
     /// <summary>
     ///     [optional] Unique PlayFab identifier of the user to load data for. Optional, defaults to yourself if not set. When specified to a
     ///     PlayFab id of another player, then this will only return public keys for that account.
     /// </summary>
     [JsonPropertyName("PlayFabId")]
-    public string PlayFabId { get; set; }
+    public string? PlayFabId { get; set; }
 }

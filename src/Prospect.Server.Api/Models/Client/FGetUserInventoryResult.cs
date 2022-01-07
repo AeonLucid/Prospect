@@ -10,19 +10,19 @@ public class FGetUserInventoryResult
     /// </summary>
     [JsonPropertyName("Inventory")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public List<FItemInstance> Inventory { get; set; }
+    public List<FItemInstance>? Inventory { get; set; }
         
     /// <summary>
     ///     [optional] Array of virtual currency balance(s) belonging to the user.
     /// </summary>
     [JsonPropertyName("VirtualCurrency")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, int> VirtualCurrency { get; set; }
+    public Dictionary<string, int>? VirtualCurrency { get; set; }
         
     /// <summary>
     ///     [optional] Array of virtual currency balance(s) belonging to the user.
     /// </summary>
     [JsonPropertyName("VirtualCurrencyRechargeTimes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, FVirtualCurrencyRechargeTime> VirtualCurrencyRechargeTimes { get; set; }
+    public Dictionary<string, FVirtualCurrencyRechargeTime>? VirtualCurrencyRechargeTimes { get; set; }
 }

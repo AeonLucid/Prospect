@@ -9,14 +9,14 @@ public class FEntityTokenResponse
     /// </summary>
     [JsonPropertyName("Entity")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FEntityKey Entity { get; set; }
+    public FEntityKey? Entity { get; set; }
         
     /// <summary>
     ///     [optional] The token used to set X-EntityToken for all entity based API calls.
     /// </summary>
     [JsonPropertyName("EntityToken")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string EntityToken { get; set; }
+    public string? EntityToken { get; set; }
 
     /// <summary>
     ///     [optional] The time the token will expire, if it is an expiring token, in UTC.

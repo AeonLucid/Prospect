@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Net.Mime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Prospect.Server.Api.Config;
@@ -45,8 +46,8 @@ public class ClientController : Controller
         
     [AllowAnonymous]
     [HttpPost("LoginWithSteam")]
-    [Produces("application/json")]
-    public async Task<IActionResult> LoginWithSteam(ClientLoginWithSteamRequest request)
+    [Produces(MediaTypeNames.Application.Json)]
+    public async Task<IActionResult> LoginWithSteam(FLoginWithSteamRequest request)
     {
         if (!string.IsNullOrEmpty(request.SteamTicket))
         {
@@ -125,7 +126,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("AddGenericID")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public IActionResult AddGenericId(FAddGenericIDRequest request)
     {
@@ -138,7 +139,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("UpdateUserTitleDisplayName")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public IActionResult UpdateUserTitleDisplayName(FUpdateUserTitleDisplayNameRequest request)
     {
@@ -154,7 +155,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("UpdateUserData")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public async Task<IActionResult> UpdateUserData(FUpdateUserDataRequest request)
     {
@@ -173,7 +174,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("GetUserData")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public async Task<IActionResult> GetUserData(FGetUserDataRequest request)
     {
@@ -193,7 +194,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("GetUserReadOnlyData")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public IActionResult GetUserReadOnlyData(FGetUserDataRequest request)
     {
@@ -210,7 +211,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("GetUserInventory")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public IActionResult GetUserReadOnlyData(FGetUserInventoryRequest request)
     {
@@ -252,7 +253,7 @@ public class ClientController : Controller
     }
 
     [HttpPost("GetTitleData")]
-    [Produces("application/json")]
+    [Produces(MediaTypeNames.Application.Json)]
     [Authorize(AuthenticationSchemes = UserAuthenticationOptions.DefaultScheme)]
     public IActionResult GetTitleData(FGetTitleDataRequest request)
     {

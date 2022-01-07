@@ -11,7 +11,7 @@ public class FGetPlayerCombinedInfoResultPayload
     /// </summary>
     [JsonPropertyName("CharacterInventories")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public List<object> CharacterInventories { get; set; }
+    public List<object>? CharacterInventories { get; set; }
         
     // TArray<FCharacterResult> CharacterList;
 
@@ -21,7 +21,7 @@ public class FGetPlayerCombinedInfoResultPayload
     /// </summary>
     [JsonPropertyName("PlayerProfile")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FPlayerProfileModel PlayerProfile { get; set; }
+    public FPlayerProfileModel? PlayerProfile { get; set; }
         
     // TArray<FStatisticValue> PlayerStatistics;
         
@@ -41,7 +41,7 @@ public class FGetPlayerCombinedInfoResultPayload
     /// </summary>
     [JsonPropertyName("UserInventory")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public List<object> UserInventory { get; set; }
+    public List<object>? UserInventory { get; set; }
 
     // TMap<FString, FUserDataRecord> UserReadOnlyData;
         

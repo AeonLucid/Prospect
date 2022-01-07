@@ -16,7 +16,7 @@ public class FExecuteCloudScriptResult
     /// </summary>
     [JsonPropertyName("Error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public FScriptExecutionError Error { get; set; }
+    public FScriptExecutionError? Error { get; set; }
         
     [JsonPropertyName("ExecutionTimeSeconds")]
     public double? ExecutionTimeSeconds { get; set; }
@@ -26,14 +26,14 @@ public class FExecuteCloudScriptResult
     /// </summary>
     [JsonPropertyName("FunctionName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string FunctionName { get; set; }
+    public string? FunctionName { get; set; }
         
     /// <summary>
     ///     [optional] The object returned from the CloudScript function, if any
     /// </summary>
     [JsonPropertyName("FunctionResult")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public object FunctionResult { get; set; }
+    public object? FunctionResult { get; set; }
         
     /// <summary>
     ///     [optional] Flag indicating if the FunctionResult was too large and was subsequently dropped from this event. This only occurs if
@@ -55,7 +55,7 @@ public class FExecuteCloudScriptResult
     /// </summary>
     [JsonPropertyName("Logs")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public List<FLogStatement> Logs { get; set; }
+    public List<FLogStatement>? Logs { get; set; }
         
     /// <summary>
     ///     [optional] Flag indicating if the logs were too large and were subsequently dropped from this event. This only occurs if the total

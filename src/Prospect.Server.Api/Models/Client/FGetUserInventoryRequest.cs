@@ -9,5 +9,5 @@ public class FGetUserInventoryRequest
     /// </summary>
     [JsonPropertyName("CustomTags")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, string> CustomTags { get; set; }
+    public Dictionary<string, string>? CustomTags { get; set; }
 }

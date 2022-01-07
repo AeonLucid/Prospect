@@ -10,19 +10,19 @@ public class FUpdateUserDataRequest
     /// </summary>
     [JsonPropertyName("CustomTags")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public Dictionary<string, string> CustomTags { get; set; }
+    public Dictionary<string, string>? CustomTags { get; set; }
         
     /// <summary>
     ///     [optional] Key-value pairs to be written to the custom data. Note that keys are trimmed of whitespace, are limited in size, and may
     ///     not begin with a '!' character or be null.
     /// </summary>
-    public Dictionary<string, string> Data { get; set; }
+    public Dictionary<string, string>? Data { get; set; }
         
     /// <summary>
     ///     [optional] Optional list of Data-keys to remove from UserData. Some SDKs cannot insert null-values into Data due to language
     ///     constraints. Use this to delete the keys directly.
     /// </summary>
-    public List<string> KeysToRemove { get; set; }
+    public List<string>? KeysToRemove { get; set; }
         
     /// <summary>
     ///     [optional] Permission to be applied to all user data keys written in this request. Defaults to "private" if not set.
