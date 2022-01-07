@@ -37,7 +37,7 @@ jobs:
       run: msbuild /m /p:Configuration=Release /p:Platform=x64 ${{env.PROJ_AGENT}}
 
     - name: Build Prospect.Launcher
-      run: dotnet publish -o ./Prospect-Launcher -r win-x64 -c Release -v minimal ${{env.PROJ_LAUNCHER}}
+      run: dotnet publish -o ./Prospect-Launcher -r win-x64 --no-self-contained -c Release -v minimal ${{env.PROJ_LAUNCHER}}
 
     - name: Compress Prospect.Launcher
       run: 7z a launcher.zip ./Prospect-Launcher
