@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Prospect.Launcher.Invoke.Structs
+namespace Prospect.Launcher.Invoke.Structs;
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct ProcessInformation
 {
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct ProcessInformation
-    {
-        public IntPtr hProcess;
-        public IntPtr hThread;
-        public uint dwProcessId;
-        public uint dwThreadId;
-    }
+    public IntPtr hProcess;
+    public IntPtr hThread;
+    public uint dwProcessId;
+    public uint dwThreadId;
 }

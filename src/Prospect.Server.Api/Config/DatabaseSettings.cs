@@ -1,8 +1,7 @@
-﻿namespace Prospect.Server.Api.Config
+﻿namespace Prospect.Server.Api.Config;
+
+public class DatabaseSettings
 {
-    public class DatabaseSettings
-    {
-        public string ConnectionString { get; set; }
-        public string DatabaseName { get; set; }
-    }
+    public string ConnectionString { get; set; }
+    public string DatabaseName { get; set; }
 }

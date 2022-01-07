@@ -1,7 +1,6 @@
-﻿namespace Prospect.Server.Api.Services.Auth
+﻿namespace Prospect.Server.Api.Services.Auth;
+
+public class AuthTokenSettings
 {
-    public class AuthTokenSettings
-    {
-        public string Secret { get; set; }
-    }
+    public string Secret { get; set; }
 }

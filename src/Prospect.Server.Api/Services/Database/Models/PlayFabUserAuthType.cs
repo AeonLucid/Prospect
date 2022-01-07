@@ -1,8 +1,7 @@
-﻿namespace Prospect.Server.Api.Services.Database.Models
+﻿namespace Prospect.Server.Api.Services.Database.Models;
+
+public enum PlayFabUserAuthType
 {
-    public enum PlayFabUserAuthType
-    {
-        Epic,
-        Steam
-    }
+    Epic,
+    Steam
 }

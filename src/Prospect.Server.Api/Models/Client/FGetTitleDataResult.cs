@@ -1,14 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace Prospect.Server.Api.Models.Client
+namespace Prospect.Server.Api.Models.Client;
+
+public class FGetTitleDataResult
 {
-    public class FGetTitleDataResult
-    {
-        /// <summary>
-        ///     [optional] a dictionary object of key / value pairs
-        /// </summary>
-        [JsonPropertyName("Data")]
-        public Dictionary<string, string> Data { get; set; }
-    }
+    /// <summary>
+    ///     [optional] a dictionary object of key / value pairs
+    /// </summary>
+    [JsonPropertyName("Data")]
+    public Dictionary<string, string> Data { get; set; }
 }

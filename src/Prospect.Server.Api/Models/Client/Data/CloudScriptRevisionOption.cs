@@ -1,9 +1,8 @@
-﻿namespace Prospect.Server.Api.Models.Client.Data
+﻿namespace Prospect.Server.Api.Models.Client.Data;
+
+public enum CloudScriptRevisionOption
 {
-    public enum CloudScriptRevisionOption
-    {
-        Live,
-        Latest,
-        Specific
-    }
+    Live,
+    Latest,
+    Specific
 }

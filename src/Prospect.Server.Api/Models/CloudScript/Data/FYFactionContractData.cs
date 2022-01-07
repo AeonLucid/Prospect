@@ -1,13 +1,12 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Prospect.Server.Api.Models.CloudScript.Data
-{
-    public class FYFactionContractData
-    {
-        [JsonPropertyName("contractId")]
-        public string ContractId { get; set; }
+namespace Prospect.Server.Api.Models.CloudScript.Data;
 
-        [JsonPropertyName("contractIsLockedDueToLowFactionReputation")]
-        public bool ContractIsLockedDueToLowFactionReputation { get; set; }
-    }
+public class FYFactionContractData
+{
+    [JsonPropertyName("contractId")]
+    public string ContractId { get; set; }
+
+    [JsonPropertyName("contractIsLockedDueToLowFactionReputation")]
+    public bool ContractIsLockedDueToLowFactionReputation { get; set; }
 }

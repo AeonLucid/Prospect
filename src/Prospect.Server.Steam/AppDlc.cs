@@ -1,11 +1,8 @@
-﻿using System.Collections.Generic;
+﻿namespace Prospect.Server.Steam;
 
-namespace Prospect.Server.Steam
+public class AppDlc
 {
-    public class AppDlc
-    {
-        public uint AppId { get; set; }
+    public uint AppId { get; set; }
         
-        public List<uint> Licenses { get; set; }
-    }
+    public List<uint> Licenses { get; set; }
 }
