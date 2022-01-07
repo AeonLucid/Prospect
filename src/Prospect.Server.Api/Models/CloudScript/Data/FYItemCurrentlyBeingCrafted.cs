@@ -4,16 +4,16 @@ namespace Prospect.Server.Api.Models.CloudScript.Data
 {
     public class FYItemCurrentlyBeingCrafted
     {
-        [JsonPropertyName("")]
+        [JsonPropertyName("itemId")]
         public string ItemId { get; set; }
         
-        [JsonPropertyName("")]
+        [JsonPropertyName("itemRarity")]
         public int ItemRarity { get; set; }
         
-        [JsonPropertyName("")]
+        [JsonPropertyName("purchaseAmount")]
         public int PurchaseAmount { get; set; }
         
-        [JsonPropertyName("")]
+        [JsonPropertyName("utcTimestampWhenCraftingStarted")]
         public FYTimestamp UtcTimestampWhenCraftingStarted { get; set; }
     }
 }

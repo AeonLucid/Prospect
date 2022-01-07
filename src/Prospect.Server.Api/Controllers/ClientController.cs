@@ -243,8 +243,8 @@ namespace Prospect.Server.Api.Controllers
                     {
                         ["AE"] = 0,
                         ["AS"] = 0,
-                        ["AU"] = 0,
-                        ["SC"] = 30000
+                        ["AU"] = int.MaxValue,
+                        ["SC"] = int.MaxValue
                     },
                     VirtualCurrencyRechargeTimes = new Dictionary<string, FVirtualCurrencyRechargeTime>()
                 }
