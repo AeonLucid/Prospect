@@ -18,5 +18,5 @@ public class FEntityKey
 
     // Not in PlayFab SDK
     [JsonPropertyName("TypeString")] 
-    public string TypeString { get; set; } = null!;
+    public string? TypeString { get; set; } = null!;
 }

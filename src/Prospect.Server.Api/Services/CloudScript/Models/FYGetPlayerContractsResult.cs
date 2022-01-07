@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
-using Prospect.Server.Api.Models.CloudScript.Data;
+using Prospect.Server.Api.Services.CloudScript.Models.Data;
 
-namespace Prospect.Server.Api.Models.CloudScript;
+namespace Prospect.Server.Api.Services.CloudScript.Models;
 
 public class FYGetPlayerContractsResult
 {

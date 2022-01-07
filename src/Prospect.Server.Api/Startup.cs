@@ -1,7 +1,9 @@
 using Prospect.Server.Api.Config;
 using Prospect.Server.Api.Converters;
+using Prospect.Server.Api.Hubs;
 using Prospect.Server.Api.Middleware;
 using Prospect.Server.Api.Services.Auth;
+using Prospect.Server.Api.Services.CloudScript;
 using Prospect.Server.Api.Services.Database;
 using Prospect.Server.Api.Services.Qos;
 using Prospect.Server.Api.Services.UserData;
@@ -35,6 +37,9 @@ public class Startup
 
         services.AddHostedService<QosService>();
         services.AddSingleton<QosServer>();
+
+        services.AddScoped<CloudScriptService>();
+        services.AddSingleton<CloudScriptFunctionLoader>();
         
         services.AddAuthentication(_ =>
             {
@@ -42,7 +47,11 @@ public class Startup
             })
             .AddUserAuthentication(_ => {})
             .AddEntityAuthentication(_ => {});
-            
+
+        services.AddHttpContextAccessor();
+
+        services.AddSignalR();
+        
         services.AddControllers().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.Converters.Add(new DateTimeConverter());
@@ -64,6 +73,7 @@ public class Startup
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
+            endpoints.MapHub<CycleHub>("/signalr");
         });
     }
 }

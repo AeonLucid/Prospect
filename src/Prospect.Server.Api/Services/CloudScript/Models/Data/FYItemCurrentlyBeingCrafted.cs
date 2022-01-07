@@ -1,11 +1,11 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Prospect.Server.Api.Models.CloudScript.Data;
+namespace Prospect.Server.Api.Services.CloudScript.Models.Data;
 
 public class FYItemCurrentlyBeingCrafted
 {
     [JsonPropertyName("itemId")]
-    public string ItemId { get; set; } = null!;
+    public string? ItemId { get; set; }
         
     [JsonPropertyName("itemRarity")]
     public int ItemRarity { get; set; }

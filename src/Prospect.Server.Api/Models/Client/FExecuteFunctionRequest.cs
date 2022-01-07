@@ -18,12 +18,12 @@ public class FExecuteFunctionRequest
     [JsonPropertyName("Entity")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public FEntityKey? Entity { get; set; }
-        
+
     /// <summary>
     ///     The name of the CloudScript function to execute
     /// </summary>
     [JsonPropertyName("FunctionName")]
-    public string? FunctionName { get; set; }
+    public string FunctionName { get; set; } = null!;
         
     /// <summary>
     ///     [optional] Object that is passed in to the function as the FunctionArgument field of the FunctionExecutionContext data structure
@@ -38,5 +38,5 @@ public class FExecuteFunctionRequest
     /// </summary>
     [JsonPropertyName("GeneratePlayStreamEvent")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool? GeneratePlayStreamEvent { get; set; }
+    public bool GeneratePlayStreamEvent { get; set; }
 }

@@ -21,7 +21,8 @@ public class ClientController : Controller
 {
     private const int AppIdDefault = 480;
     private const int AppIdCycleBeta = 1600361;
-        
+
+    private readonly ILogger<ClientController> _logger;
     private readonly PlayFabSettings _settings;
     private readonly AuthTokenService _authTokenService;
     private readonly DbUserService _userService;
@@ -29,7 +30,8 @@ public class ClientController : Controller
     private readonly UserDataService _userDataService;
     private readonly TitleDataService _titleDataService;
 
-    public ClientController(IOptions<PlayFabSettings> settings, 
+    public ClientController(ILogger<ClientController> logger,
+        IOptions<PlayFabSettings> settings, 
         AuthTokenService authTokenService, 
         DbUserService userService, 
         DbEntityService entityService,
@@ -37,6 +39,7 @@ public class ClientController : Controller
         TitleDataService titleDataService)
     {
         _settings = settings.Value;
+        _logger = logger;
         _authTokenService = authTokenService;
         _userService = userService;
         _entityService = entityService;
@@ -113,6 +116,11 @@ public class ClientController : Controller
                     }
                 });
             }
+            
+            _logger.LogWarning("Invalid steam ticket specified, IsValid {IsValid}, HasValidSignature {Sig}, AppId {AppId}",
+                ticket.IsValid,
+                ticket.HasValidSignature,
+                ticket.AppId);
         }
             
         return BadRequest(new ClientResponse
