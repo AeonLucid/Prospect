@@ -44,15 +44,13 @@ public class QosServer : IAsyncDisposable
             
                 _logger.LogInformation("Received {Data} from {Address}", result.Buffer, result.RemoteEndPoint);
 
-                if (result.Buffer.Length == 22 && BinaryPrimitives.ReadUInt64LittleEndian(result.Buffer) == 0xFFFFFFFF)
+                if (result.Buffer.Length == 22 && BinaryPrimitives.ReadUInt16LittleEndian(result.Buffer) == 0xFFFF)
                 {
                     // The server will reply with a single datagram, with the message contents having the
                     // first 2 bytes "flipped" to 0x0000 (0000 0000 0000 0000).
                     // The rest of the datagram contents will be copied from the initial ping.
                     result.Buffer[0] = 0x00;
                     result.Buffer[1] = 0x00;
-                    result.Buffer[2] = 0x00;
-                    result.Buffer[3] = 0x00;
 
                     await _client.SendAsync(result.Buffer, result.RemoteEndPoint);
                 }
