@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Prospect.Server.Steam\Prospect.Server.Steam.csproj" />
+      <ProjectReference Include="..\Prospect.Steam\Prospect.Steam.csproj" />
     </ItemGroup>
 
 </Project>

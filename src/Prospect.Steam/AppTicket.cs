@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Prospect.Server.Steam;
+namespace Prospect.Steam;
 
 public class AppTicket
 {

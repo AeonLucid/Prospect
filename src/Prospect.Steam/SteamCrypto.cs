@@ -1,6 +1,6 @@
 ﻿using System.Security.Cryptography;
 
-namespace Prospect.Server.Steam;
+namespace Prospect.Steam;
 
 internal static class SteamCrypto
 {

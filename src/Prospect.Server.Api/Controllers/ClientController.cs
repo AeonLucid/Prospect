@@ -11,7 +11,7 @@ using Prospect.Server.Api.Services.Auth.User;
 using Prospect.Server.Api.Services.Database;
 using Prospect.Server.Api.Services.Database.Models;
 using Prospect.Server.Api.Services.UserData;
-using Prospect.Server.Steam;
+using Prospect.Steam;
 
 namespace Prospect.Server.Api.Controllers;
 

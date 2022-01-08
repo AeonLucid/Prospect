@@ -1,4 +1,4 @@
-﻿namespace Prospect.Server.Steam;
+﻿namespace Prospect.Steam;
 
 public class AppDlc
 {
