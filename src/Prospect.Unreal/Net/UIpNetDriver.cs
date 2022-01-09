@@ -11,9 +11,9 @@ public class UIpNetDriver : UNetDriver
 
     private bool _isDisposed;
     
-    public UIpNetDriver()
+    public UIpNetDriver(IPAddress host, int port)
     {
-        ServerIp = new IPEndPoint(IPAddress.Any, 7777);
+        ServerIp = new IPEndPoint(host, port);
         Socket = new UdpClient(ServerIp);
         ReceiveThread = new FReceiveThreadRunnable(this);
     }
@@ -22,7 +22,7 @@ public class UIpNetDriver : UNetDriver
     public UdpClient Socket { get; }
     public FReceiveThreadRunnable ReceiveThread { get; }
 
-    public bool Init()
+    public override bool Init()
     {
         // Initialize connectionless packet handler.
         InitConnectionlessHandler();
@@ -119,8 +119,7 @@ public class UIpNetDriver : UNetDriver
                     returnVal.InitSequence(clientSequence, serverSequence);
                 }
 
-                // TODO: World url
-                returnVal.InitRemoteConnection(this, Socket, null, address, EConnectionState.USOCK_Open);
+                returnVal.InitRemoteConnection(this, Socket, World != null ? World.Url : new FUrl(), address, EConnectionState.USOCK_Open);
                 
                 // if (returnVal.Handler)
             }

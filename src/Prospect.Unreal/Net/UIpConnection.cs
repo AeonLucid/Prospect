@@ -6,17 +6,17 @@ namespace Prospect.Unreal.Net;
 
 public class UIpConnection : UNetConnection
 {
-    public override void InitBase(UNetDriver inDriver, UdpClient inSocket, FURL inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
+    public override void InitBase(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
     {
         throw new NotImplementedException();
     }
 
-    public override void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FURL inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
+    public override void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
     {
         throw new NotImplementedException();
     }
 
-    public override void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FURL inURL, EConnectionState inState,
+    public override void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState,
         int inMaxPacket = 0, int inPacketOverhead = 0)
     {
         throw new NotImplementedException();

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
+using Prospect.Unreal.Runtime;
 
 namespace Prospect.Unreal.Net;
 
@@ -11,6 +12,11 @@ public abstract class UNetDriver : IAsyncDisposable
     {
         MappedClientConnections = new ConcurrentDictionary<IPEndPoint, UNetConnection>();
     }
+    
+    /// <summary>
+    ///     World this net driver is associated with
+    /// </summary>
+    public UWorld? World { get; private set; }
     
     /// <summary>
     ///     Map of <see cref="IPEndPoint"/> to <see cref="UNetConnection"/>.
@@ -37,6 +43,11 @@ public abstract class UNetDriver : IAsyncDisposable
 
         ConnectionlessHandler.InitializeComponents();
     }
+
+    public virtual bool Init()
+    {
+        throw new NotImplementedException();
+    }
     
     public virtual void TickDispatch(float deltaTime)
     {
@@ -49,7 +60,22 @@ public abstract class UNetDriver : IAsyncDisposable
     }
     
     public abstract bool IsNetResourceValid();
+    
+    public void SetWorld(UWorld? inWorld)
+    {
+        if (World != null)
+        {
+            World = null;
+        }
 
+        if (inWorld != null)
+        {
+            World = inWorld;
+            
+            // TODO: AddInitialObjects?
+        }
+    }
+    
     public double GetElapsedTime()
     {
         return _elapsedTime;

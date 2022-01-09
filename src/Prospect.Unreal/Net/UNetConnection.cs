@@ -9,9 +9,9 @@ public abstract class UNetConnection
     public const int ReliableBuffer = 256;
     public const int MaxPacketId = 16384;
 
-    public abstract void InitBase(UNetDriver inDriver, UdpClient inSocket, FURL inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
-    public abstract void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FURL inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
-    public abstract void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FURL inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
+    public abstract void InitBase(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
+    public abstract void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
+    public abstract void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
     public abstract void LowLevelSend(byte[] data, int countBits, FOutPacketTraits traits);
     public abstract string LowLevelGetRemoteAddress(bool bAppendPort = false);
     public abstract string LowLevelDescribe();

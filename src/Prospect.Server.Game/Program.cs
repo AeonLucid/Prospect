@@ -1,4 +1,4 @@
-﻿using Prospect.Unreal.Net;
+﻿using Prospect.Unreal.Core;
 using Serilog;
 
 namespace Prospect.Server.Game;
@@ -10,9 +10,9 @@ internal static class Program
     private static readonly ILogger Logger = Log.ForContext(typeof(Program));
     private static readonly PeriodicTimer Tick = new PeriodicTimer(TimeSpan.FromSeconds(TickRate));
     
-    public static async Task Main(string[] args)
+    public static async Task Main()
     {
-        Console.CancelKeyPress += (s, e) =>
+        Console.CancelKeyPress += (_, e) =>
         {
             Tick.Dispose();
             e.Cancel = true;
@@ -25,23 +25,19 @@ internal static class Program
             .CreateLogger();
         
         Logger.Information("Starting Prospect.Server.Game");
-        
-        await using (var driver = new UIpNetDriver())
+
+        var worldUrl = new FUrl
         {
-            driver.Init();
+            Map = "/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap"
+        };
         
-            // Tick all components.
+        await using (var world = new ProspectWorld(worldUrl))
+        {
+            world.Listen();
+        
             while (await Tick.WaitForNextTickAsync())
             {
-                var deltaTime = TickRate;
-                
-                driver.TickDispatch(deltaTime);
-                // driver.PostTickDispatch();
-
-                if (driver.ConnectionlessHandler != null)
-                {
-                    driver.ConnectionlessHandler.Tick(deltaTime);
-                }
+                world.Tick(TickRate);
             }
         }
         
