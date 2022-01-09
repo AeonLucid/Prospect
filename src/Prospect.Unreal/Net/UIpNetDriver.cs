@@ -39,7 +39,7 @@ public class UIpNetDriver : UNetDriver
         
         while (ReceiveThread.TryReceive(out var packet))
         {
-            Logger.Information("Received {Buffer} from {Adress}", packet.DataView.GetData(), packet.Address);
+            Logger.Information("Received from {Adress} data {Buffer}", packet.Address, packet.DataView.GetData());
 
             UNetConnection? connection = null;
 

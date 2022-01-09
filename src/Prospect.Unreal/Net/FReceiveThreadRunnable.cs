@@ -33,13 +33,11 @@ public class FReceiveThreadRunnable : IAsyncDisposable
     {
         if (_receiveQueue.TryDequeue(out var packet))
         {
-            result = new FReceivedPacketView
-            {
-                DataView = new FPacketDataView(packet.Buffer, packet.Buffer.Length),
-                Address = packet.Address,
-                Traits = new FInPacketTraits()
-            };
-
+            result = new FReceivedPacketView(
+                new FPacketDataView(packet.Buffer, packet.Buffer.Length),
+                packet.Address, 
+                new FInPacketTraits());
+            
             return true;
         }
 

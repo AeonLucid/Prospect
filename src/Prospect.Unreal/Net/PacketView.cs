@@ -37,6 +37,13 @@ public class FPacketDataView
 
 public class FReceivedPacketView
 {
+    public FReceivedPacketView(FPacketDataView dataView, IPEndPoint address, FInPacketTraits traits)
+    {
+        DataView = dataView;
+        Address = address;
+        Traits = traits;
+    }
+
     public FPacketDataView DataView { get; set; }
     public IPEndPoint Address { get; set; }
     public FInPacketTraits Traits { get; set; }
