@@ -12,4 +12,8 @@
       <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Prospect.Unreal\Prospect.Unreal.csproj" />
+    </ItemGroup>
+
 </Project>
