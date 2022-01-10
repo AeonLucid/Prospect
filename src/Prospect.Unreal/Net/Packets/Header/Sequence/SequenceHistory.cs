@@ -18,15 +18,6 @@ public readonly struct SequenceHistory
     {
         _storage = new uint[WordCount];
     }
-    
-    public void Read(FBitReader reader, uint numWords)
-    {
-        numWords = Math.Min(numWords, WordCount);
-        for (var i = 0; i < numWords; i++)
-        {
-            _storage[i] = reader.ReadUInt32();
-        }
-    }
 
     public void Reset()
     {
@@ -36,11 +27,34 @@ public readonly struct SequenceHistory
         }
     }
 
+    public void AddDeliveryStatus(bool delivered)
+    {
+        var carry = delivered ? 1u : 0u;
+        var valueMask = 1u << (int)(BitsPerWord - 1);
+
+        for (var i = 0; i < WordCount; i++)
+        {
+            var oldValue = carry;
+
+            carry = (_storage[i] & valueMask) >> (int)(BitsPerWord - 1);
+            _storage[i] = (_storage[i] << 1) | oldValue;
+        }
+    }
+
     public bool IsDelivered(int index)
     {
         var wordIndex = (int)(index / BitsPerWord);
         var wordMask = 1 << (int)(index & (BitsPerWord - 1));
 
         return (_storage[wordIndex] & wordMask) != 0;
+    }
+    
+    public void Read(FBitReader reader, uint numWords)
+    {
+        numWords = Math.Min(numWords, WordCount);
+        for (var i = 0; i < numWords; i++)
+        {
+            _storage[i] = reader.ReadUInt32();
+        }
     }
 }

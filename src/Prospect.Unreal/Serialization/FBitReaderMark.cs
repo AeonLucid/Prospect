@@ -1,6 +1,6 @@
 ﻿namespace Prospect.Unreal.Serialization;
 
-public class FBitReaderMark
+public struct FBitReaderMark
 {
     private long _pos;
     

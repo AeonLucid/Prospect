@@ -1,3 +1,5 @@
-﻿namespace Prospect.Unreal.Net;
+﻿using Prospect.Unreal.Core.Names;
 
-public record FChannelDefinition(string Name, Type Class, int StaticChannelIndex, bool TickOnCreate, bool ServerOpen, bool ClientOpen, bool InitialServer, bool InitialClient);
+namespace Prospect.Unreal.Net;
+
+public record FChannelDefinition(FName Name, Type Class, int StaticChannelIndex, bool TickOnCreate, bool ServerOpen, bool ClientOpen, bool InitialServer, bool InitialClient);

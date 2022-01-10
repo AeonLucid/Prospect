@@ -1,5 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
+using Prospect.Unreal.Core.Names;
+using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net.Channels;
 using Prospect.Unreal.Runtime;
 
@@ -13,14 +15,20 @@ public abstract class UNetDriver : IAsyncDisposable
     {
         GuidCache = new FNetGUIDCache(this);
         // TODO: Load from Engine ini
+        ChannelDefinitionMap = new Dictionary<FName, FChannelDefinition>();
         ChannelDefinitions = new List<FChannelDefinition>
         {
-            new FChannelDefinition("Control", typeof(string), 0, true, false, true, false, true),
-            new FChannelDefinition("Voice", typeof(string), 1, true, true, true, true, true),
-            new FChannelDefinition("Actor", typeof(string), -1, false, true, false, false, false)
+            new FChannelDefinition(UnrealNames.FNames[UnrealNameKey.Control], typeof(string), 0, true, false, true, false, true),
+            new FChannelDefinition(UnrealNames.FNames[UnrealNameKey.Voice], typeof(string), 1, true, true, true, true, true),
+            new FChannelDefinition(UnrealNames.FNames[UnrealNameKey.Actor], typeof(string), -1, false, true, false, false, false)
         };
         ClientConnections = new List<UNetConnection>();
         MappedClientConnections = new ConcurrentDictionary<IPEndPoint, UNetConnection>();
+        
+        foreach (var channel in ChannelDefinitions)
+        {
+            ChannelDefinitionMap[channel.Name] = channel;
+        }
     }
     
     /// <summary>
@@ -28,12 +36,19 @@ public abstract class UNetDriver : IAsyncDisposable
     /// </summary>
     public UWorld? World { get; private set; }
     
+    public FNetworkNotify Notify { get; private set; }
+    
     public FNetGUIDCache GuidCache { get; }
     
     /// <summary>
     ///     Used to specify available channel types and their associated UClass
     /// </summary>
     public List<FChannelDefinition> ChannelDefinitions { get; } 
+    
+    /// <summary>
+    ///     Used for faster lookup of channel definitions by name.
+    /// </summary>
+    public Dictionary<FName, FChannelDefinition> ChannelDefinitionMap { get; }
 
     /// <summary>
     ///     Array of connections to clients (this net driver is a host) - unsorted, and ordering changes depending on actor replication
@@ -66,9 +81,10 @@ public abstract class UNetDriver : IAsyncDisposable
         ConnectionlessHandler.InitializeComponents();
     }
 
-    public virtual bool Init()
+    public virtual bool Init(FNetworkNotify notify)
     {
-        throw new NotImplementedException();
+        Notify = notify;
+        return true;
     }
     
     public virtual void TickDispatch(float deltaTime)
@@ -101,6 +117,11 @@ public abstract class UNetDriver : IAsyncDisposable
     public bool IsServer()
     {
         return true;
+    }
+
+    public bool IsKnownChannelName(FName name)
+    {
+        return ChannelDefinitionMap.ContainsKey(name);
     }
 
     public virtual bool ShouldIgnoreRPCs()
@@ -143,6 +164,19 @@ public abstract class UNetDriver : IAsyncDisposable
                 clientConnection.CreateChannelByName(channelDef.Name, EChannelCreateFlags.OpenedLocally, channelDef.StaticChannelIndex);
             }
         }
+    }
+
+    public UChannel GetOrCreateChannelByName(FName chName)
+    {
+        // TODO: Pool actor channels (?)
+
+        return (UnrealNameKey)chName.Number switch
+        {
+            UnrealNameKey.Actor => new UActorChannel(),
+            UnrealNameKey.Control => new UControlChannel(),
+            UnrealNameKey.Voice => new UVoiceChannel(),
+            _ => throw new UnrealNetException($"Attempted to create unknown channel {chName}")
+        };
     }
 
     public virtual ValueTask DisposeAsync()

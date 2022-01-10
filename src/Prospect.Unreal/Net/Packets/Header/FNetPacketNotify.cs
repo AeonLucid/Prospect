@@ -71,7 +71,7 @@ public class FNetPacketNotify
         var inSeqDelta = GetSequenceDelta(notificationData);
         if (inSeqDelta > 0)
         {
-            Logger.Verbose("FNetPacketNotify::Update - Seq {Seq}, InSeq {InSeq}", notificationData.Seq.Value, _inSeq.Value);
+            Logger.Verbose("Update - Seq {Seq}, InSeq {InSeq}", notificationData.Seq.Value, _inSeq.Value);
 
             ProcessReceivedAcks(notificationData, func);
 
@@ -142,5 +142,35 @@ public class FNetPacketNotify
         }
 
         return new SequenceNumber((ushort)(ackedSeq.Value - MaxSequenceHistoryLength));
+    }
+
+    /// <summary>
+    ///     Mark Seq as received and update current InSeq, missing sequence numbers will be marked as lost
+    /// </summary>
+    public void AckSeq(SequenceNumber seq)
+    {
+        AckSeq(seq, true);
+    }
+
+    /// <summary>
+    ///     Explicitly mark Seq as not received and update current InSeq, additional missing sequence numbers will be marked as lost
+    /// </summary>
+    public void NakSeq(SequenceNumber seq)
+    {
+        AckSeq(seq, false);
+    }
+
+    private void AckSeq(SequenceNumber ackedSeq, bool isAck)
+    {
+        while (ackedSeq.Greater(_inAckSeq))
+        {
+            _inAckSeq.IncrementAndGet();
+
+            var bReportAcked = _inAckSeq.Equals(ackedSeq) ? isAck : false;
+            
+            Logger.Verbose("AckSeq - AckedSeq: {Seq}, IsAck {IsAck}", _inAckSeq.Value, bReportAcked);
+
+            _inSeqHistory.AddDeliveryStatus(bReportAcked);
+        }
     }
 }

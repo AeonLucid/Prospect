@@ -22,8 +22,13 @@ public class UIpNetDriver : UNetDriver
     public UdpClient Socket { get; }
     public FReceiveThreadRunnable ReceiveThread { get; }
 
-    public override bool Init()
+    public override bool Init(FNetworkNotify notify)
     {
+        if (!base.Init(notify))
+        {
+            return false;
+        }
+        
         // Initialize connectionless packet handler.
         InitConnectionlessHandler();
         

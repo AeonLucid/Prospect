@@ -55,7 +55,13 @@ public class UIpConnection : UNetConnection
 
     public override string LowLevelGetRemoteAddress(bool bAppendPort = false)
     {
-        throw new NotImplementedException();
+        if (RemoteAddr != null)
+        {
+            // TODO: Remove port
+            return RemoteAddr.ToString();
+        }
+
+        return string.Empty;
     }
 
     public override string LowLevelDescribe()

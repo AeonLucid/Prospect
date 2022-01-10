@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Net.Sockets;
 using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
@@ -7,12 +8,13 @@ using Prospect.Unreal.Net.Channels;
 using Prospect.Unreal.Net.Packets.Bunch;
 using Prospect.Unreal.Net.Packets.Header;
 using Prospect.Unreal.Net.Packets.Header.Sequence;
+using Prospect.Unreal.Net.Player;
 using Prospect.Unreal.Serialization;
 using Serilog;
 
 namespace Prospect.Unreal.Net;
 
-public abstract class UNetConnection
+public abstract class UNetConnection : UPlayer
 {
     private static readonly ILogger Logger = Log.ForContext<UNetConnection>();
     
@@ -30,6 +32,7 @@ public abstract class UNetConnection
     public const EEngineNetworkVersionHistory DefaultEngineNetworkProtocolVersion = EEngineNetworkVersionHistory.HISTORY_ENGINENETVERSION_LATEST;
     public const uint DefaultGameNetworkProtocolVersion = 0;
 
+    private HashSet<UChannel> _channelsToTick;
     private List<FBitReader>? _packetOrderCache;
     private int _packetOrderCacheStartIdx;
     private int _packetOrderCacheCount;
@@ -38,8 +41,17 @@ public abstract class UNetConnection
     private bool _bInternalAck;
     private bool _bReplay;
 
+    private double _statUpdateTime;
+    private double _lastReceiveTime;
+    private double _lastReceiveRealTime;
+    private double _lastGoodPacketRealtime;
+    private double _lastTime;
+    private double _lastSendTime;
+    private double _lastTickTime;
+
     public UNetConnection()
     {
+        _channelsToTick = new HashSet<UChannel>();
         _packetOrderCache = null;
         _packetOrderCacheStartIdx = 0;
         _packetOrderCacheCount = 0;
@@ -49,6 +61,7 @@ public abstract class UNetConnection
         
         Driver = null;
         PackageMap = null;
+        OpenChannels = new List<UChannel>();
         MaxPacket = 0;
         Url = new FUrl();
         RemoteAddr = new IPEndPoint(IPAddress.None, 0);
@@ -84,6 +97,8 @@ public abstract class UNetConnection
     ///     Package map between local and remote. (negotiates net serialization)
     /// </summary>
     public UPackageMapClient? PackageMap { get; private set; }
+    
+    public List<UChannel> OpenChannels { get; private set; }
     
     /// <summary>
     ///     Maximum packet size.
@@ -168,7 +183,17 @@ public abstract class UNetConnection
         Driver = inDriver;
         
         // TODO: ConnectionId
+        
+        var driverElapsedTime = Driver.GetElapsedTime();
 
+        _statUpdateTime = driverElapsedTime;
+        _lastReceiveTime = driverElapsedTime;
+        _lastReceiveRealTime = 0;
+        _lastGoodPacketRealtime = 0;
+        _lastTime = 0;
+        _lastSendTime = driverElapsedTime;
+        _lastTickTime = driverElapsedTime;
+        
         State = inState;
 
         Url.Protocol = inURL.Protocol;
@@ -263,7 +288,8 @@ public abstract class UNetConnection
         }
 
         var resetReaderMark = new FBitReaderMark(reader);
-
+        var channelsToClose = new List<FChannelCloseInfo>();
+        
         if (_bInternalAck)
         {
             ++InPacketId;
@@ -369,7 +395,7 @@ public abstract class UNetConnection
         }
 
         var bIgnoreRPCS = Driver!.ShouldIgnoreRPCs();
-        var bSickAcp = false;
+        var bSkipAck = false;
         
         // Track channels that were rejected while processing this packet - used to avoid sending multiple close-channel bunches,
         // which would cause a disconnect serverside
@@ -471,7 +497,7 @@ public abstract class UNetConnection
                 
                 if (bunch.EngineNetVer() < EEngineNetworkVersionHistory.HISTORY_CHANNEL_NAMES)
                 {
-                    bunch.ChType = (bunch.bReliable || bunch.bOpen) ? (int) reader.ReadInt(EChannelType.CHTYPE_MAX) : EChannelType.CHTYPE_None;
+                    bunch.ChType = ((bunch.bReliable || bunch.bOpen) ? (EChannelType) reader.ReadInt((int) EChannelType.CHTYPE_MAX) : EChannelType.CHTYPE_None);
 
                     switch (bunch.ChType)
                     {
@@ -533,10 +559,225 @@ public abstract class UNetConnection
                     // TODO: Close();
                     return;
                 }
+
+                var bunchDataBits = reader.ReadInt((uint)(MaxPacket * 8));
+                var headerPos = reader.GetPosBits();
+                if (reader.IsError())
+                {
+                    Logger.Error("Bunch header overflow");
+                    // TODO: Close();
+                    return;
+                }
+                
+                bunch.SetData(reader, bunchDataBits);
+
+                if (reader.IsError())
+                {
+                    Logger.Fatal("Bunch data overflowed ({IncomingStartPos} {HeaderPos}+{BunchDataBits}/{NumBits})", incomingStartPos, headerPos, bunchDataBits, reader.GetNumBits());
+                    // TOOD: Close();
+                    return;
+                }
+
+                if (bunch.bHasPackageMapExports)
+                {
+                    throw new NotImplementedException();
+                }
+
+                if (bunch.bReliable)
+                {
+                    Logger.Verbose("  Reliable Bunch, Channel {Ch} Sequence {Seq}: Size {A.0}+{B.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
+                }
+                else
+                {
+                    Logger.Verbose("  Unreliable Bunch, Channel {Ch}: Size {A.0}+{B.0}", bunch.ChIndex, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
+                }
+
+                if (bunch.bOpen)
+                {
+                    Logger.Verbose("  bOpen Bunch, Channel {Ch} Sequence {Seq}: Size {A.0}+{B.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
+                }
+
+                if (Channels[bunch.ChIndex] == null && (bunch.ChIndex != 0 || bunch.ChName != UnrealNames.FNames[UnrealNameKey.Control]))
+                {
+                    if (Channels[0] == null)
+                    {
+                        Logger.Fatal("  Received non-control bunch before control channel was created. ChIndex: {Ch}, ChName: {Name}", bunch.ChIndex, bunch.ChName);
+                        // TODO: Close();
+                        return;
+                    } 
+                    else if (PlayerController == null && Driver.ClientConnections.Contains(this))
+                    {
+                        Logger.Fatal("  Received non-control bunch before player controller was assigned. ChIndex: {Ch}, ChName: {Name}", bunch.ChIndex, bunch.ChName);
+                        // TODO: Close();
+                        return;
+                    }
+                }
+
+                // ignore control channel close if it hasn't been opened yet
+                if (bunch.ChIndex == 0 && Channels[0] == null && bunch.bClose && bunch.ChName == UnrealNames.FNames[UnrealNameKey.Control])
+                {
+                    Logger.Fatal("Received control channel close before open");
+                    // Close();
+                    return;
+                }
+
+                // We're on a 100% reliable connection and we are rolling back some data.
+                // In that case, we can generally ignore these bunches.
+                if (_bInternalAck /* && _bAllowExistingChannelIndex */)
+                {
+                    throw new NotImplementedException();
+                }
+                
+                // Ignore if reliable packet has already been processed.
+                if (bunch.bReliable && bunch.ChSequence <= InReliable[bunch.ChIndex])
+                {
+                    Logger.Warning("Received outdated bunch (Channel {Ch} Current Sequence {Seq})", bunch.ChIndex, InReliable[bunch.ChIndex]);
+                    continue;
+                }
+
+                // If opening the channel with an unreliable packet, check that it is "bNetTemporary", otherwise discard it
+                if (channel == null && !bunch.bReliable)
+                {
+                    // Unreliable bunches that open channels should be bOpen && (bClose || bPartial)
+                    // NetTemporary usually means one bunch that is unreliable (bOpen and bClose):	1(bOpen, bClose)
+                    // But if that bunch export NetGUIDs, it will get split into 2 bunches:			1(bOpen, bPartial) - 2(bClose).
+                    // (the initial actor bunch itself could also be split into multiple bunches. So bPartial is the right check here)
+
+                    var validUnreliableOpen = bunch.bOpen && (bunch.bClose || bunch.bPartial);
+                    if (!validUnreliableOpen)
+                    {
+                        if (_bInternalAck)
+                        {
+                            // Should be impossible with 100% reliable connections
+                            Logger.Error("Received unreliable bunch before open with reliable connection (Channel {Ch} Current Sequence {Seq})", bunch.ChIndex, InReliable[bunch.ChIndex]);
+                        }
+                        else
+                        {
+                            // Simply a log (not a warning, since this can happen under normal conditions, like from a re-join, etc)
+                            Logger.Information("Received unreliable bunch before open (Channel {Ch} Current Sequence {Seq})", bunch.ChIndex, InReliable[bunch.ChIndex]);
+                        }
+
+                        // Since we won't be processing this packet, don't ack it
+                        // We don't want the sender to think this bunch was processed when it really wasn't
+                        bSkipAck = true;
+                        continue;
+                    }
+                }
+
+                // Create channel if necessary.
+                if (channel == null)
+                {
+                    if (rejectedChans.Contains(bunch.ChIndex))
+                    {
+                        Logger.Warning("Ignoring Bunch for ChIndex {Ch}, as the channel was already rejected while processing this packet", bunch.ChIndex);
+                        continue;
+                    }
+                    
+                    // Validate channel type.
+                    if (!Driver.IsKnownChannelName(bunch.ChName))
+                    {
+                        // Unknown type.
+                        Logger.Fatal("Connection unknown channel type ({Name})", bunch.ChName);
+                        // TODO: Close()
+                        return;
+                    }
+
+                    // Ignore incoming data on channel types that the client are not allowed to create. This can occur if we have in-flight data when server is closing a channel
+                    if (Driver.IsServer() && (Driver.ChannelDefinitionMap[bunch.ChName].ClientOpen == false))
+                    {
+                        Logger.Warning("Ignoring Bunch Create received from client since only server is allowed to create this type of channel: Bunch  {Ch}: ChName {Name}, ChSequence: {Seq}", bunch.ChIndex, bunch.ChName, bunch.ChSequence);
+                        rejectedChans.Add(bunch.ChIndex);
+                        continue;
+                    }
+
+                    // peek for guid
+                    if (_bInternalAck /* && bIgnoreActorBunches */)
+                    {
+                        throw new NotImplementedException();
+                    }
+                    
+                    // Reliable (either open or later), so create new channel.
+                    Logger.Information("  Bunch Create {ChIndex}: ChName {ChName}, ChSequence: {ChSequence}, bReliable: {Reliable}, bPartial: {Partial}, bPartialInitial: {PartInit}, bPartialFinal: {PartFin}",
+                        bunch.ChIndex,
+                        bunch.ChName,
+                        bunch.ChSequence,
+                        bunch.bReliable,
+                        bunch.bPartial,
+                        bunch.bPartialInitial,
+                        bunch.bPartialFinal);
+
+                    channel = CreateChannelByName(bunch.ChName, EChannelCreateFlags.None, bunch.ChIndex);
+
+                    // Notify the server of the new channel.
+                    if (!Driver.Notify.NotifyAcceptingChannel(channel))
+                    {
+                        // Channel refused, so close it, flush it, and delete it.
+                        Logger.Verbose("NotifyAcceptingChannel Failed! Channel: {Channel}", channel);
+                        rejectedChans.Add(bunch.ChIndex);
+                        
+                        // TODO: FOutBunch
+                        continue;
+                    }
+                }
+
+                bunch.bIgnoreRPCs = bIgnoreRPCS;
+                
+                // Dispatch the raw, unsequenced bunch to the channel.
+                channel.ReceivedRawBunch(bunch, out var bLocalSkipAck);
+
+                if (bLocalSkipAck)
+                {
+                    bSkipAck = true;
+                }
+                
+                // Disconnect if we received a corrupted packet from the client (eg server crash attempt).
+                if (Driver.IsServer() && (bunch.IsCriticalError() || bunch.IsError()))
+                {
+                    Logger.Error("Received corrupted packet data from client {RemoteAddress}.  Disconnecting", LowLevelGetRemoteAddress());
+                    // TODO: Close()
+                    return;
+                }
             }
         }
 
-        throw new NotImplementedException();
+        // Close/clean-up channels pending close due to received acks.
+        foreach (var info in channelsToClose)
+        {
+            var channel = Channels[info.Id];
+            if (channel != null)
+            {
+                channel.ConditionalCleanUp(false, info.CloseReason);
+            }
+        }
+
+        // TODO: ValidateSendBuffer();
+
+        if (!bSkipAck)
+        {
+            _lastGoodPacketRealtime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+
+        if (!_bInternalAck)
+        {
+            if (bSkipAck)
+            {
+                PacketNotify.NakSeq(new SequenceNumber((ushort)InPacketId));
+            }
+            else
+            {
+                PacketNotify.AckSeq(new SequenceNumber((ushort)InPacketId));
+                
+                // TODO: Increment things
+                // ++OutTotalAcks;
+                // ++Driver->OutTotalAcks;
+            }
+            
+            // We do want to let the other side know about the ack, so even if there are no other outgoing data when we tick the connection we will send an ackpacket.
+            // TimeSensitive = 1;
+            // ++HasDirtyAcks;
+            
+            // TODO: FlushNet if HasDirtyAcks
+        }
     }
 
     private bool ReadPacketInfo(FBitReader reader, bool bHasPacketInfoPayload)
@@ -641,10 +882,93 @@ public abstract class UNetConnection
         Handler.InitializeComponents();
     }
 
-    public void CreateChannelByName(string chName, EChannelCreateFlags createFlags, int channelIndex)
+    public UChannel CreateChannelByName(FName chName, EChannelCreateFlags createFlags, int chIndex)
     {
-        // TODO: Implement
-        Logger.Verbose("Creating channel {Name} with index {Index}", chName, channelIndex);
+        if (!Driver!.IsKnownChannelName(chName))
+        {
+            throw new UnrealNetException("Unknown channel name was specified.");
+        }
+
+        if (chIndex == UnrealConstants.IndexNone)
+        {
+            chIndex = GetFreeChannelIndex(chName);
+
+            if (chIndex == UnrealConstants.IndexNone)
+            {
+                Logger.Warning("No free channel could be found in the channel list (current limit is {Max} channels)", MaxChannelSize);
+                throw new UnrealNetException("Exhausted channels");
+            }
+        }
+        
+        // Make sure channel is valid.
+        if (chIndex >= Channels.Length)
+        {
+            throw new UnrealNetException("Channel index is too high.");
+        }
+
+        if (Channels[chIndex] != null)
+        {
+            throw new UnrealNetException("Trying to replace an existing channel.");
+        }
+        
+        // Create channel.
+        var channel = Driver.GetOrCreateChannelByName(chName);
+        if (channel == null)
+        {
+            throw new UnrealNetException("Failed to create channel.");
+        }
+
+        channel.Init(this, chIndex, createFlags);
+        
+        Channels[chIndex] = channel;
+        OpenChannels.Add(channel);
+
+        if (Driver.ChannelDefinitionMap[chName].TickOnCreate)
+        {
+            StartTickingChannel(channel);
+        }
+        
+        Logger.Verbose("Created channel {Ch} of type {Name}", chIndex, chName);
+
+        return channel;
+    }
+
+    private int GetFreeChannelIndex(FName chName)
+    {
+        int chIndex;
+        var firstChannel = 1;
+
+        var staticChannelIndex = Driver!.ChannelDefinitionMap[chName].StaticChannelIndex;
+        if (staticChannelIndex != -1)
+        {
+            firstChannel = staticChannelIndex;
+        }
+                
+        // Search the channel array for an available location
+        for (chIndex = firstChannel; chIndex < Channels.Length; chIndex++)
+        {
+            if (Channels[chIndex] == null)
+            {
+                break;
+            }
+        }
+
+        if (chIndex == Channels.Length)
+        {
+            chIndex = UnrealConstants.IndexNone;
+        }
+
+        return chIndex;
+    }
+
+    private void StartTickingChannel(UChannel channel)
+    {
+        _channelsToTick.Add(channel);
+    }
+
+    private void StopTickingChannel(UChannel channel)
+    {
+        _channelsToTick.Remove(channel);
     }
 
     private protected void SetClientLoginState(EClientLoginState newState)
@@ -671,6 +995,11 @@ public abstract class UNetConnection
         Logger.Verbose("SetExpectedClientLoginMsgType: Type changing from [{Old}] to [{New}]", ExpectedClientLoginMsgType, newType);
 
         ExpectedClientLoginMsgType = newType;
+    }
+
+    public bool IsInternalAck()
+    {
+        return _bInternalAck;
     }
 
     private static int BestSignedDifference(int value, int reference, int max)

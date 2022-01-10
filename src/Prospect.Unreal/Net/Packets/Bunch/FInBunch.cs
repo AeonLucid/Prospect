@@ -6,14 +6,46 @@ namespace Prospect.Unreal.Net.Packets.Bunch
 {
     public class FInBunch : FNetBitReader
     {
+        public FInBunch(FInBunch inBunch, bool copyBuffer) : base(inBunch.PackageMap, null, 0)
+        {
+            PacketId = inBunch.PacketId;
+            Next = inBunch.Next;
+            Connection = inBunch.Connection;
+            ChIndex = inBunch.ChIndex;
+            ChType = inBunch.ChType;
+            ChName = inBunch.ChName;
+            ChSequence = inBunch.ChSequence;
+            bOpen = inBunch.bOpen;
+            bClose = inBunch.bClose;
+            bDormant = inBunch.bDormant;
+            bIsReplicationPaused = inBunch.bIsReplicationPaused;
+            bReliable = inBunch.bReliable;
+            bPartial = inBunch.bPartial;
+            bPartialInitial = inBunch.bPartialInitial;
+            bPartialFinal = inBunch.bPartialFinal;
+            bHasPackageMapExports = inBunch.bHasPackageMapExports;
+            bHasMustBeMappedGUIDs = inBunch.bHasMustBeMappedGUIDs;
+            bIgnoreRPCs = inBunch.bIgnoreRPCs;
+            CloseReason = inBunch.CloseReason;
+            
+            // Copy network version info
+            SetEngineNetVer(inBunch.EngineNetVer());
+            SetGameNetVer(inBunch.GameNetVer());
+
+            if (copyBuffer)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        
         public FInBunch(UNetConnection inConnection, byte[]? src = null, int countBits = 0) : base(inConnection.PackageMap, src, countBits)
         {
             PacketId = 0;
             Next = null;
             Connection = inConnection;
             ChIndex = 0;
-            ChType = 0; // TODO: CHTYPE_None
-            ChName = UnrealNames.FNames[UnrealNameKey.None]; // TODO: NAME_None
+            ChType = EChannelType.CHTYPE_None;
+            ChName = UnrealNames.FNames[UnrealNameKey.None];
             ChSequence = 0;
             bOpen = false;
             bClose = false;
@@ -41,7 +73,7 @@ namespace Prospect.Unreal.Net.Packets.Bunch
 
         public int ChIndex { get; set; }
 
-        public int ChType { get; set; }
+        public EChannelType ChType { get; set; }
         
         public FName ChName { get; set; }
 
