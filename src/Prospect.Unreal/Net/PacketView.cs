@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Prospect.Unreal.Core;
 
 namespace Prospect.Unreal.Net;
 
@@ -8,15 +9,26 @@ public class FInPacketTraits
     public bool FromRecentlyDisconnected { get; set; }
 }
 
-public class FPacketDataView
+public readonly struct FPacketDataView
 {
     private readonly byte[] _data;
+    private readonly int _count;
     private readonly int _countBits;
 
-    public FPacketDataView(byte[] data, int length)
+    public FPacketDataView(byte[] data, int length, ECountUnits unit)
     {
         _data = data;
-        _countBits = length * 8;
+
+        if (unit == ECountUnits.Bits)
+        {
+            _count = FMath.DivideAndRoundUp(length, 8);
+            _countBits = length;
+        }
+        else /* if (unit == ECountUnits.Bytes) */
+        {
+            _count = length;
+            _countBits = length * 8;
+        }
     }
 
     public byte[] GetData()
@@ -31,7 +43,7 @@ public class FPacketDataView
 
     public int NumBytes()
     {
-        return _data.Length;
+        return _count;
     }
 }
 

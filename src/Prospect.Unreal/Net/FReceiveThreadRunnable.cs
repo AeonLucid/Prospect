@@ -34,7 +34,7 @@ public class FReceiveThreadRunnable : IAsyncDisposable
         if (_receiveQueue.TryDequeue(out var packet))
         {
             result = new FReceivedPacketView(
-                new FPacketDataView(packet.Buffer, packet.Buffer.Length),
+                new FPacketDataView(packet.Buffer, packet.Buffer.Length, ECountUnits.Bytes),
                 packet.Address, 
                 new FInPacketTraits());
             
@@ -58,10 +58,10 @@ public class FReceiveThreadRunnable : IAsyncDisposable
                     continue;
                 }
             
-                if (result.Buffer.Length > CoreNet.MaxPacketSize)
+                if (result.Buffer.Length > UNetConnection.MaxPacketSize)
                 {
                     Logger.Warning("Received packet exceeding MaxPacketSize ({Size} > {Max}) from {Ip}", 
-                        result.Buffer.Length, CoreNet.MaxPacketSize, result.RemoteEndPoint);
+                        result.Buffer.Length, UNetConnection.MaxPacketSize, result.RemoteEndPoint);
                     continue;
                 }
 

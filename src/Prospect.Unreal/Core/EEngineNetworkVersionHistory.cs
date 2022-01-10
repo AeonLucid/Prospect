@@ -1,6 +1,6 @@
 ﻿namespace Prospect.Unreal.Core;
 
-public enum EEngineNetworkVersionHistory
+public enum EEngineNetworkVersionHistory : uint
 {
     HISTORY_INITIAL = 1,
     HISTORY_REPLAY_BACKWARDS_COMPAT = 2,			// Bump version to get rid of older replays before backwards compat was turned on officially

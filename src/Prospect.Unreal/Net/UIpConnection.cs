@@ -6,20 +6,46 @@ namespace Prospect.Unreal.Net;
 
 public class UIpConnection : UNetConnection
 {
+    public const int IpHeaderSize = 20;
+    public const int UdpHeaderSize = IpHeaderSize + 8;
+
+    /// <summary>
+    ///     Cached time of the first send socket error that will be used to compute disconnect delay.
+    /// </summary>
+    private double _socketErrorSendDelayStartTime;
+    
+    /// <summary>
+    ///     Cached time of the first recv socket error that will be used to compute disconnect delay.
+    /// </summary>
+    private double _socketErrorRecvDelayStartTime;
+    
+    public UdpClient? Socket { get; private set; }
+    
     public override void InitBase(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
     {
-        throw new NotImplementedException();
+        base.InitBase(inDriver, inSocket, inURL, inState, 
+            (inMaxPacket == 0 || inMaxPacket > MaxPacketSize) ? MaxPacketSize : inMaxPacket, 
+            inPacketOverhead == 0 ? UdpHeaderSize : inPacketOverhead);
+        
+        Socket = inSocket;
     }
 
     public override void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
     {
-        throw new NotImplementedException();
+        InitBase(inDriver, inSocket, inURL, inState, 
+            (inMaxPacket == 0 || inMaxPacket > MaxPacketSize) ? MaxPacketSize : inMaxPacket, 
+            inPacketOverhead == 0 ? UdpHeaderSize : inPacketOverhead);
+
+        RemoteAddr = inRemoteAddr;
+        Url.Host = RemoteAddr.Address;
+
+        SetClientLoginState(EClientLoginState.LoggingIn);
+        SetExpectedClientLoginMsgType(0); // TODO: NMT_HELLO
     }
 
-    public override void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState,
-        int inMaxPacket = 0, int inPacketOverhead = 0)
+    public override void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 
     public override void LowLevelSend(byte[] data, int countBits, FOutPacketTraits traits)
@@ -47,9 +73,11 @@ public class UIpConnection : UNetConnection
         throw new NotImplementedException();
     }
 
-    public override void ReceivedRawPacket(byte[] data, int count)
+    public override void ReceivedRawPacket(FReceivedPacketView packetView)
     {
-        throw new NotImplementedException();
+        _socketErrorRecvDelayStartTime = 0;
+        
+        base.ReceivedRawPacket(packetView);
     }
 
     public override float GetTimeoutValue()

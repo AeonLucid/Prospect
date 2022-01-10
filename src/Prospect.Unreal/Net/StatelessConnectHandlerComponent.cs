@@ -153,7 +153,53 @@ public class StatelessConnectHandlerComponent : HandlerComponent
 
     public override void Incoming(FBitReader packet)
     {
-        base.Incoming(packet);
+        if (_magicHeader.Length > 0)
+        {
+            // Skip magic header.
+            packet.Pos += _magicHeader.Length;
+        }
+        
+        var bHandshakePacket = packet.ReadBit() && !packet.IsError();
+        if (bHandshakePacket)
+        {
+            var bRestartHandshake = false;
+            var secretId = (byte) 0;
+            var timestamp = 1.0d;
+            Span<byte> cookie = stackalloc byte[CookieByteSize];
+            Span<byte> origCookie = stackalloc byte[CookieByteSize];
+
+            bHandshakePacket = ParseHandshakePacket(packet, ref bRestartHandshake, ref secretId, ref timestamp, cookie, origCookie);
+
+            if (bHandshakePacket)
+            {
+                if (Handler.Mode == HandlerMode.Client)
+                {
+                    throw new NotSupportedException();
+                }
+                else if (Handler.Mode == HandlerMode.Server)
+                {
+                    if (_lastChallengeSuccessAddress != null)
+                    {
+                        // The server should not be receiving handshake packets at this stage - resend the ack in case it was lost.
+                        // In this codepath, this component is linked to a UNetConnection, and the Last* values below, cache the handshake info.
+                        SendChallengeAck(_lastChallengeSuccessAddress, _authorisedCookie);
+                    }
+                }
+            }
+            else
+            {
+                packet.SetError();
+                Logger.Error("Incoming: Error reading handshake packet");
+            }
+        }
+        else if (packet.IsError())
+        {
+            Logger.Error("Incoming: Error reading handshake bit from packet");
+        } 
+        else if (_lastChallengeSuccessAddress != null && Handler.Mode == HandlerMode.Server)
+        {
+            _lastChallengeSuccessAddress = null;
+        }
     }
 
     public override void Outgoing(FBitWriter packet, FOutPacketTraits traits)
@@ -181,14 +227,18 @@ public class StatelessConnectHandlerComponent : HandlerComponent
             var bRestartHandshake = false;
             var secretId = (byte) 0;
             var timestamp = 1.0d;
-            var cookie = new byte[CookieByteSize];
-            var origCookie = new byte[CookieByteSize];
+            Span<byte> cookie = stackalloc byte[CookieByteSize];
+            Span<byte> origCookie = stackalloc byte[CookieByteSize];
 
             bHandshakePacket = ParseHandshakePacket(packet, ref bRestartHandshake, ref secretId, ref timestamp, cookie, origCookie);
 
             if (bHandshakePacket)
             {
-                if (Handler.Mode == HandlerMode.Server)
+                if (Handler.Mode == HandlerMode.Client)
+                {
+                    throw new NotSupportedException();
+                }
+                else if (Handler.Mode == HandlerMode.Server)
                 {
                     var bInitialConnect = timestamp == 0.0;
                     if (bInitialConnect)
@@ -206,7 +256,7 @@ public class StatelessConnectHandlerComponent : HandlerComponent
                         if (bValidCookieLifetime && bValidSecretIdTimestamp)
                         {
                             // Regenerate the cookie from the packet info, and see if the received cookie matches the regenerated one
-                            var regenCookie = new byte[CookieByteSize];
+                            Span<byte> regenCookie = stackalloc byte[CookieByteSize];
                             
                             GenerateCookie(address, secretId, timestamp, regenCookie);
 
@@ -216,16 +266,17 @@ public class StatelessConnectHandlerComponent : HandlerComponent
                             {
                                 if (bRestartHandshake)
                                 {
-                                    Buffer.BlockCopy(origCookie, 0, _authorisedCookie, 0, _authorisedCookie.Length);
+                                    origCookie.CopyTo(_authorisedCookie);
                                 }
                                 else
                                 {
-                                    var curSequence = BinaryPrimitives.ReadInt16LittleEndian(cookie);
+                                    var seqA = BinaryPrimitives.ReadInt16LittleEndian(cookie);
+                                    var seqB = BinaryPrimitives.ReadInt16LittleEndian(cookie.Slice(2));
 
-                                    _lastServerSequence = curSequence & (UNetConnection.MaxPacketId - 1);
-                                    _lastClientSequence = (curSequence + 1) & (UNetConnection.MaxPacketId - 1);
+                                    _lastServerSequence = seqA & (UNetConnection.MaxPacketId - 1);
+                                    _lastClientSequence = seqB & (UNetConnection.MaxPacketId - 1);
                                     
-                                    Buffer.BlockCopy(cookie, 0, _authorisedCookie, 0, _authorisedCookie.Length);
+                                    cookie.CopyTo(_authorisedCookie);
                                 }
 
                                 _bRestartedHandshake = bRestartHandshake;
@@ -262,7 +313,7 @@ public class StatelessConnectHandlerComponent : HandlerComponent
         FBitReader packet, 
         ref bool bOutRestartHandshake, 
         ref byte outSecretId,
-        ref double outTimestamp, byte[] outCookie, byte[] outOrigCookie)
+        ref double outTimestamp, Span<byte> outCookie, Span<byte> outOrigCookie)
     {
         var bValidPacket = false;
         var bitsLeft = packet.GetBitsLeft();
@@ -314,7 +365,7 @@ public class StatelessConnectHandlerComponent : HandlerComponent
         var bHandshakePacket = (byte)1;
         var bRestartHandshake = (byte)0;
         var timestamp = _driver.GetElapsedTime();
-        var cookie = new byte[CookieByteSize];
+        Span<byte> cookie = stackalloc byte[CookieByteSize];
 
         GenerateCookie(address, _activeSecret, timestamp, cookie);
 
@@ -329,7 +380,7 @@ public class StatelessConnectHandlerComponent : HandlerComponent
         challengePacket.WriteDouble(timestamp);
         challengePacket.Serialize(cookie, cookie.Length);
         
-        Logger.Verbose("SendConnectChallenge. Timestamp: {Timestamp}, Cookie: {Cookie}", timestamp, cookie);
+        Logger.Verbose("SendConnectChallenge. Timestamp: {Timestamp}, Cookie: {Cookie}", timestamp, Convert.ToHexString(cookie));
 
         CapHandshakePacket(challengePacket);
 

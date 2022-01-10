@@ -53,19 +53,27 @@ public class UIpNetDriver : UNetDriver
             {
                 MappedClientConnections.TryGetValue(packet.Address, out connection);
             }
+
+            var bIgnorePacket = false;
             
             // If we didn't find a client connection, maybe create a new one.
             if (connection == null)
             {
                 connection = ProcessConnectionlessPacket(packet);
-                // TODO: bIgnorePacket
+                bIgnorePacket = packet.DataView.NumBytes() == 0;
+            }
+            
+            // Send the packet to the connection for processing.
+            if (connection != null && !bIgnorePacket)
+            {
+                connection.ReceivedRawPacket(packet);
             }
         }
     }
 
     private UNetConnection? ProcessConnectionlessPacket(FReceivedPacketView packet)
     {
-        UNetConnection? returnVal;
+        UNetConnection? returnVal = null;
         var statelessConnect = StatelessConnectComponent;
         var address = packet.Address;
         var bPassedChallenge = false;
@@ -95,7 +103,7 @@ public class UIpNetDriver : UNetDriver
                         bIgnorePacket = false;
                     }
 
-                    packet.DataView = new FPacketDataView(workingData, newCountBytes);
+                    packet.DataView = new FPacketDataView(workingData, newCountBytes, ECountUnits.Bytes);
                 }
             }
         }
@@ -120,8 +128,13 @@ public class UIpNetDriver : UNetDriver
                 }
 
                 returnVal.InitRemoteConnection(this, Socket, World != null ? World.Url : new FUrl(), address, EConnectionState.USOCK_Open);
-                
-                // if (returnVal.Handler)
+
+                if (returnVal.Handler != null)
+                {
+                    returnVal.Handler.BeginHandshaking();
+                }
+
+                AddClientConnection(returnVal);
             }
 
             if (statelessConnect != null)
@@ -132,10 +145,10 @@ public class UIpNetDriver : UNetDriver
 
         if (bIgnorePacket)
         {
-            packet.DataView = new FPacketDataView(packet.DataView.GetData(), 0);
+            packet.DataView = new FPacketDataView(packet.DataView.GetData(), 0, ECountUnits.Bits);
         }
         
-        return null;
+        return returnVal;
     }
 
     public override void LowLevelSend(IPEndPoint address, byte[] data, int countBits, FOutPacketTraits traits)

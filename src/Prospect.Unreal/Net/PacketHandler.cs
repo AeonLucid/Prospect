@@ -50,7 +50,11 @@ public class PacketHandler
 
         if (!_bConnectionlessHandler)
         {
-            throw new NotImplementedException();
+            // TODO: Load from .ini file (GEngineIni)
+            //  %s PacketHandlerProfileConfig (Driver..)
+            //  Components
+            
+            // If no matches, load from PacketHandlerComponents / Components in GEngineIni
         }
         
         // TODO: FEncryptionComponent.
@@ -93,6 +97,19 @@ public class PacketHandler
         return Outgoing_Internal(packet, countBits, traits, true, address);
     }
 
+    public void BeginHandshaking()
+    {
+        // bBeganHandshaking = true;
+
+        foreach (var component in _handlerComponents)
+        {
+            if (component.RequiresHandshake() && !component.IsInitialized())
+            {
+                component.NotifiyHandshakeBegin();
+            }
+        }
+    }
+
     public HandlerComponent AddHandler<T>() where T : HandlerComponent
     {
         var result = (HandlerComponent) Activator.CreateInstance(typeof(T), this)!;
@@ -100,6 +117,16 @@ public class PacketHandler
         _handlerComponents.Add(result);
         
         return result;
+    }
+
+    public bool Incoming(FReceivedPacketView packetView)
+    {
+        return Incoming_Internal(packetView);
+    }
+
+    public void IncomingHigh(FBitReader reader)
+    {
+        // NO-OP
     }
 
     private bool Incoming_Internal(FReceivedPacketView packetView)
@@ -159,7 +186,7 @@ public class PacketHandler
             {
                 ReplaceIncomingPacket(processPacketReader);
 
-                packetView.DataView = new FPacketDataView(_incomingPacket.GetBuffer(), _incomingPacket.GetBitsLeft());
+                packetView.DataView = new FPacketDataView(_incomingPacket.GetBuffer(), _incomingPacket.GetBitsLeft(), ECountUnits.Bits);
             }
             else
             {

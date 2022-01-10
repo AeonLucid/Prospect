@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
+using Prospect.Unreal.Net.Channels;
 using Prospect.Unreal.Runtime;
 
 namespace Prospect.Unreal.Net;
@@ -10,6 +11,15 @@ public abstract class UNetDriver : IAsyncDisposable
     
     protected UNetDriver()
     {
+        GuidCache = new FNetGUIDCache(this);
+        // TODO: Load from Engine ini
+        ChannelDefinitions = new List<FChannelDefinition>
+        {
+            new FChannelDefinition("Control", typeof(string), 0, true, false, true, false, true),
+            new FChannelDefinition("Voice", typeof(string), 1, true, true, true, true, true),
+            new FChannelDefinition("Actor", typeof(string), -1, false, true, false, false, false)
+        };
+        ClientConnections = new List<UNetConnection>();
         MappedClientConnections = new ConcurrentDictionary<IPEndPoint, UNetConnection>();
     }
     
@@ -18,6 +28,18 @@ public abstract class UNetDriver : IAsyncDisposable
     /// </summary>
     public UWorld? World { get; private set; }
     
+    public FNetGUIDCache GuidCache { get; }
+    
+    /// <summary>
+    ///     Used to specify available channel types and their associated UClass
+    /// </summary>
+    public List<FChannelDefinition> ChannelDefinitions { get; } 
+
+    /// <summary>
+    ///     Array of connections to clients (this net driver is a host) - unsorted, and ordering changes depending on actor replication
+    /// </summary>
+    public List<UNetConnection> ClientConnections { get; }
+
     /// <summary>
     ///     Map of <see cref="IPEndPoint"/> to <see cref="UNetConnection"/>.
     /// </summary>
@@ -75,6 +97,16 @@ public abstract class UNetDriver : IAsyncDisposable
             // TODO: AddInitialObjects?
         }
     }
+
+    public bool IsServer()
+    {
+        return true;
+    }
+
+    public virtual bool ShouldIgnoreRPCs()
+    {
+        return false;
+    }
     
     public double GetElapsedTime()
     {
@@ -85,7 +117,34 @@ public abstract class UNetDriver : IAsyncDisposable
     {
         _elapsedTime = 0.0;
     }
-    
+
+    private protected void AddClientConnection(UNetConnection newConnection)
+    {
+        ClientConnections.Add(newConnection);
+
+        if (newConnection.RemoteAddr != null)
+        {
+            MappedClientConnections[newConnection.RemoteAddr] = newConnection;
+            
+            // TODO: RecentlyDisconnectedClients ?
+        }
+
+        CreateInitialServerChannels(newConnection);
+
+        // TODO: NetworkObjectList > HandleConnectionAdded
+    }
+
+    private void CreateInitialServerChannels(UNetConnection clientConnection)
+    {
+        foreach (var channelDef in ChannelDefinitions)
+        {
+            if (channelDef.InitialServer)
+            {
+                clientConnection.CreateChannelByName(channelDef.Name, EChannelCreateFlags.OpenedLocally, channelDef.StaticChannelIndex);
+            }
+        }
+    }
+
     public virtual ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;
