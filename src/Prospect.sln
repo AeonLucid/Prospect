@@ -23,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{168B6247
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prospect.Unreal.Tests", "Prospect.Unreal.Tests\Prospect.Unreal.Tests.csproj", "{14DAE1A4-6F3F-43C0-AC17-9DCDE420AF34}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prospect.Unreal.Generator", "Prospect.Unreal.Generator\Prospect.Unreal.Generator.csproj", "{71E3E262-49C5-4B6C-9670-D0741CEDB63B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -85,6 +87,14 @@ Global
 		{14DAE1A4-6F3F-43C0-AC17-9DCDE420AF34}.Release|x64.Build.0 = Release|Any CPU
 		{14DAE1A4-6F3F-43C0-AC17-9DCDE420AF34}.Release|x86.ActiveCfg = Release|Any CPU
 		{14DAE1A4-6F3F-43C0-AC17-9DCDE420AF34}.Release|x86.Build.0 = Release|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Debug|x64.Build.0 = Debug|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Debug|x86.Build.0 = Debug|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Release|x64.ActiveCfg = Release|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Release|x64.Build.0 = Release|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Release|x86.ActiveCfg = Release|Any CPU
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -100,5 +110,6 @@ Global
 		{DE064B5C-5E9A-44FB-8DB0-5E61DD8ED4F6} = {76364BAA-BC9D-4A92-AA2A-8914FAE22834}
 		{380DD490-8F01-4025-91D7-74C289AA5B75} = {76364BAA-BC9D-4A92-AA2A-8914FAE22834}
 		{14DAE1A4-6F3F-43C0-AC17-9DCDE420AF34} = {168B6247-2D33-4942-AB3F-C5041B3BDFEA}
+		{71E3E262-49C5-4B6C-9670-D0741CEDB63B} = {76364BAA-BC9D-4A92-AA2A-8914FAE22834}
 	EndGlobalSection
 EndGlobal

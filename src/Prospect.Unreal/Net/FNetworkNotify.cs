@@ -1,5 +1,6 @@
 ﻿using Prospect.Unreal.Net.Channels;
 using Prospect.Unreal.Net.Packets.Bunch;
+using Prospect.Unreal.Net.Packets.Control;
 
 namespace Prospect.Unreal.Net;
 
@@ -24,5 +25,5 @@ public interface FNetworkNotify
     ///
     ///     (i.e. use FNetControlMessage::Receive())
     /// </summary>
-    void NotifyControlMessage(UNetConnection connection, byte messageType, FInBunch bunch);
+    void NotifyControlMessage(UNetConnection connection, NMT messageType, FInBunch bunch);
 }

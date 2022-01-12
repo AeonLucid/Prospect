@@ -1,7 +1,7 @@
 ﻿using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Net.Packets.Bunch;
 
-namespace Prospect.Unreal.Net.Channels;
+namespace Prospect.Unreal.Net.Channels.Actor;
 
 public class UActorChannel : UChannel
 {

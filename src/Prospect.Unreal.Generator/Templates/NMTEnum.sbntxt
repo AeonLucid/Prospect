@@ -1,0 +1,8 @@
+﻿namespace {{ cnamespace }};
+
+public enum NMT 
+{
+{{~ for entry in entries ~}}
+    {{ entry.Name }} = {{ entry.Index }},
+{{~ end ~}}
+}

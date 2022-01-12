@@ -3,6 +3,9 @@ using System.Net;
 using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net.Channels;
+using Prospect.Unreal.Net.Channels.Actor;
+using Prospect.Unreal.Net.Channels.Control;
+using Prospect.Unreal.Net.Channels.Voice;
 using Prospect.Unreal.Runtime;
 
 namespace Prospect.Unreal.Net;
@@ -30,6 +33,9 @@ public abstract class UNetDriver : IAsyncDisposable
             ChannelDefinitionMap[channel.Name] = channel;
         }
     }
+
+    // From Engine ini
+    public float KeepAliveTime { get; } = 0.2f;
     
     /// <summary>
     ///     World this net driver is associated with
@@ -73,7 +79,7 @@ public abstract class UNetDriver : IAsyncDisposable
     public void InitConnectionlessHandler()
     {
         ConnectionlessHandler = new PacketHandler();
-        ConnectionlessHandler.Initialize(true);
+        ConnectionlessHandler.Initialize(HandlerMode.Server, UNetConnection.MaxPacketSize, true);
 
         StatelessConnectComponent = (StatelessConnectHandlerComponent) ConnectionlessHandler.AddHandler<StatelessConnectHandlerComponent>();
         StatelessConnectComponent.SetDriver(this);

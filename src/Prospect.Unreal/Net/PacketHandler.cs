@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Serialization;
 using Serilog;
 
@@ -11,16 +12,25 @@ public record ProcessedPacket(byte[] Data, int CountBits, bool Error = false);
 public class PacketHandler
 {
     private static readonly ILogger Logger = Log.ForContext<PacketHandler>();
+    private static readonly IPEndPoint EmptyAddress = new IPEndPoint(IPAddress.None, 0);
     
     private readonly List<HandlerComponent> _handlerComponents;
     
     private bool _bConnectionlessHandler;
     private bool _bRawSend;
+    
+    /// <summary>
+    ///     The maximum supported packet size (reflects UNetConnection::MaxPacket)
+    /// </summary>
+    private uint _maxPacketBits;
+    
     private HandlerState _state;
     private ReliabilityHandlerComponent? _reliabilityComponent;
 
     private FBitWriter _outgoingPacket;
     private FBitReader _incomingPacket;
+
+    private bool _bBeganHandshaking;
 
     public PacketHandler()
     {
@@ -28,13 +38,12 @@ public class PacketHandler
         _state = HandlerState.Uninitialized;
         _handlerComponents = new List<HandlerComponent>();
         _reliabilityComponent = null;
-        _outgoingPacket = new FBitWriter(0);
+        _outgoingPacket = new FBitWriter(0, true, false);
+        _outgoingPacket.AllowAppend(1);
         _incomingPacket = new FBitReader(Array.Empty<byte>());
-
-        Mode = HandlerMode.Server;
     }
 
-    public HandlerMode Mode { get; }
+    public HandlerMode Mode { get; private set; }
 
     public void Tick(float deltaTime)
     {
@@ -44,8 +53,10 @@ public class PacketHandler
         }
     }
 
-    public void Initialize(bool bConnectionlessOnly)
+    public void Initialize(HandlerMode mode, uint inMaxPacketBits, bool bConnectionlessOnly)
     {
+        Mode = mode;
+        _maxPacketBits = inMaxPacketBits;
         _bConnectionlessHandler = bConnectionlessOnly;
 
         if (!_bConnectionlessHandler)
@@ -83,6 +94,9 @@ public class PacketHandler
                 component.Initialize();
             }
         }
+        
+        // Called early, to ensure that all handlers report a valid reserved packet bits value (triggers an assert if not)
+        GetTotalReservedPacketBits();
     }
 
     public bool IncomingConnectionless(FReceivedPacketView packetView)
@@ -97,13 +111,18 @@ public class PacketHandler
         return Outgoing_Internal(packet, countBits, traits, true, address);
     }
 
+    public ProcessedPacket Outgoing(byte[] packet, int countBits, FOutPacketTraits traits)
+    {
+        return Outgoing_Internal(packet, countBits, traits, false, EmptyAddress);
+    }
+
     public void BeginHandshaking()
     {
         // bBeganHandshaking = true;
 
         foreach (var component in _handlerComponents)
         {
-            if (component.RequiresHandshake() && !component.IsInitialized())
+            if (component.RequiresHandshake && !component.IsInitialized())
             {
                 component.NotifiyHandshakeBegin();
             }
@@ -125,6 +144,11 @@ public class PacketHandler
     }
 
     public void IncomingHigh(FBitReader reader)
+    {
+        // NO-OP
+    }
+
+    public void OutgoingHigh(FBitWriter writer)
     {
         // NO-OP
     }
@@ -201,12 +225,68 @@ public class PacketHandler
     {
         if (!_bRawSend)
         {
-            throw new NotImplementedException();
+            _outgoingPacket.Reset();
+
+            if (_state == HandlerState.Uninitialized)
+            {
+                UpdateInitialState();
+            }
+
+            if (_state == HandlerState.Initialized)
+            {
+                _outgoingPacket.SerializeBits(packet, countBits);
+
+                foreach (var component in _handlerComponents)
+                {
+                    if (component.IsActive())
+                    {
+                        if (_outgoingPacket.GetNumBits() <= component.MaxOutgoingBits)
+                        {
+                            if (bConnectionLess)
+                            {
+                                component.OutgoingConnectionless(address, _outgoingPacket, traits);
+                            }
+                            else
+                            {
+                                component.Outgoing(ref _outgoingPacket, traits);
+                            }
+                        }
+                        else
+                        {
+                            _outgoingPacket.SetError();
+                            Logger.Error("Packet exceeded HandlerComponents 'MaxOutgoingBits' value: {A} vs {B}", _outgoingPacket.GetNumBits(), component.MaxOutgoingBits);
+                            break;
+                        }
+                    }
+                }
+                
+                // Add a termination bit, the same as the UNetConnection code does, if appropriate
+                if (_handlerComponents.Count > 0 && _outgoingPacket.GetNumBits() > 0)
+                {
+                    _outgoingPacket.WriteBit(true);
+                }
+
+                if (!bConnectionLess && _reliabilityComponent != null && _outgoingPacket.GetNumBits() > 0)
+                {
+                    // Let the reliability handler know about all processed packets, so it can record them for resending if needed
+                    throw new NotImplementedException();
+                }
+            }
+            // Buffer any packets being sent from game code until processors are initialized
+            else if (_state == HandlerState.InitializingComponents && countBits > 0)
+            {
+                throw new NotImplementedException();
+            }
+
+            if (!_outgoingPacket.IsError())
+            {
+                return new ProcessedPacket(_outgoingPacket.GetData(), (int)_outgoingPacket.GetNumBits());
+            }
+
+            return new ProcessedPacket(packet, countBits, true);
         }
-        else
-        {
-            return new ProcessedPacket(packet, countBits);
-        }
+
+        return new ProcessedPacket(packet, countBits);
     }
 
     private void SetState(HandlerState state)
@@ -288,5 +368,77 @@ public class PacketHandler
     public bool GetRawSend()
     {
         return _bRawSend;
+    }
+
+    public int GetTotalReservedPacketBits()
+    {
+        var returnVal = 0;
+        var curMaxOutgoingBits = _maxPacketBits;
+
+        for (int i = _handlerComponents.Count - 1; i >= 0; i--)
+        {
+            var curComponent = _handlerComponents[i];
+            var curReservedBits = curComponent.GetReservedPacketBits();
+            
+            // Specifying the reserved packet bits is mandatory, even if zero (as accidentally forgetting, leads to hard to trace issues).
+            if (curReservedBits == -1)
+            {
+                throw new UnrealNetException("Handler returned invalid 'GetReservedPacketBits' value");
+            }
+
+            curComponent.MaxOutgoingBits = curMaxOutgoingBits;
+            curMaxOutgoingBits -= (uint) curReservedBits;
+
+            returnVal += curReservedBits;
+        }
+        
+        // Reserve space for the termination bit
+        if (_handlerComponents.Count > 0)
+        {
+            returnVal++;
+        }
+
+        return returnVal;
+    }
+
+    public void HandlerComponentInitialized(HandlerComponent inComponent)
+    {
+        // Check if all handlers are initialized
+        if (_state != HandlerState.Initialized)
+        {
+            var bAllInitialized = true;
+            var bEncounteredComponent = false;
+            var bPassedHandshakeNotify = false;
+
+            for (int i = _handlerComponents.Count - 1; i >= 0; --i)
+            {
+                var curComponent = _handlerComponents[i];
+
+                if (!curComponent.IsInitialized())
+                {
+                    bAllInitialized = false;
+                }
+
+                if (bEncounteredComponent)
+                {
+                    // If the initialized component required a handshake, pass on notification to the next handshaking component
+                    // (components closer to the Socket, perform their handshake first)
+                    if (_bBeganHandshaking && !curComponent.IsInitialized() && inComponent.RequiresHandshake && !bPassedHandshakeNotify && curComponent.RequiresHandshake)
+                    {
+                        curComponent.NotifiyHandshakeBegin();
+                        bPassedHandshakeNotify = true;
+                    }
+                }
+                else
+                {
+                    bEncounteredComponent = curComponent == inComponent;
+                }
+            }
+
+            if (bAllInitialized)
+            {
+                HandlerInitialized();
+            }
+        }
     }
 }

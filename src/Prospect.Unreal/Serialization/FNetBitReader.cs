@@ -9,10 +9,10 @@ public class FNetBitReader : FBitReader
         throw new NotSupportedException();
     }
 
-    public FNetBitReader(UPackageMapClient? inPackageMap, byte[]? src, int num) : base(src, num)
+    public FNetBitReader(UPackageMap? inPackageMap, byte[]? src, int num) : base(src, num)
     {
         PackageMap = inPackageMap;
     }
     
-    public UPackageMapClient? PackageMap { get; }
+    public UPackageMap? PackageMap { get; }
 }

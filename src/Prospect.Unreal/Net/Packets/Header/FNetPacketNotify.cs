@@ -14,7 +14,9 @@ public class FNetPacketNotify
     public const int MaxSequenceHistoryLength = 256;
 
     private readonly Queue<FSentAckData> _ackRecord = new Queue<FSentAckData>();
-
+    private uint _writtenHistoryWordCount;
+    private SequenceNumber _writtenInAckSeq;
+    
     private readonly SequenceHistory _inSeqHistory = new SequenceHistory();
     private SequenceNumber _inSeq;
     private SequenceNumber _inAckSeq;
@@ -31,6 +33,71 @@ public class FNetPacketNotify
         _inAckSeqAck = initialInSeq;
         _outSeq = initialOutSeq;
         _outAckSeq = new SequenceNumber((ushort)(initialOutSeq.Value - 1));
+    }
+
+    public SequenceNumber GetInSeq()
+    {
+        return _inSeq;
+    }
+
+    public SequenceNumber GetInAckSeq()
+    {
+        return _inAckSeq;
+    }
+
+    public SequenceNumber GetOutSeq()
+    {
+        return _outSeq;
+    }
+
+    public SequenceNumber GetOutAckSeq()
+    {
+        return _outAckSeq;
+    }
+
+    /// <summary>
+    ///     These methods must always write and read the exact same number of bits, that is the reason for not using WriteInt/WrittedWrappedInt
+    /// </summary>
+    public bool WriteHeader(FBitWriter writer, bool bRefresh)
+    {
+        // we always write at least 1 word
+        var currentHistoryWorkCount = Math.Clamp((GetCurrentSequenceHistoryLength() + SequenceHistory.BitsPerWord - 1) / SequenceHistory.BitsPerWord, 1, SequenceHistory.WordCount);
+        
+        // We can only do a refresh if we do not need more space for the history
+        if (bRefresh && (currentHistoryWorkCount > _writtenHistoryWordCount))
+        {
+            return false;
+        }
+        
+        // How many words of ack data should we write? If this is a refresh we must write the same size as the original header
+        _writtenHistoryWordCount = bRefresh ? _writtenHistoryWordCount : currentHistoryWorkCount;
+        
+        // This is the last InAck we have acknowledged at this time
+        _writtenInAckSeq = _inAckSeq;
+
+        var seq = _outSeq;
+        var ackedSeq = _inAckSeq;
+        
+        // Pack data into a uint
+        var packedHeader = FPackedHeader.Pack(seq, ackedSeq, _writtenHistoryWordCount - 1);
+        
+        // Write packed header
+        writer.WriteUInt32(packedHeader);
+        
+        // Write ack history
+        _inSeqHistory.Write(writer, _writtenHistoryWordCount);
+
+        return true;
+    }
+
+    private uint GetCurrentSequenceHistoryLength()
+    {
+        if (_inAckSeq.GreaterEq(_inAckSeqAck))
+        {
+            return (uint) SequenceNumber.Diff(_inAckSeq, _inAckSeqAck);
+        }
+
+        return SequenceHistory.Size;
     }
 
     public bool ReadHeader(ref FNotificationHeader data, FBitReader reader)
@@ -172,5 +239,14 @@ public class FNetPacketNotify
 
             _inSeqHistory.AddDeliveryStatus(bReportAcked);
         }
+    }
+    
+    public SequenceNumber CommitAndIncrementOutSeq()
+    {
+        // Add entry to the ack-record so that we can update the InAckSeqAck when we received the ack for this OutSeq.
+        _ackRecord.Enqueue(new FSentAckData(_outSeq, _writtenInAckSeq));
+        _writtenHistoryWordCount = 0;
+
+        return _outSeq.IncrementAndGet();
     }
 }

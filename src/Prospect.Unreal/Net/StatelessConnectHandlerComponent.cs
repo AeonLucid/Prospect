@@ -76,6 +76,10 @@ public class StatelessConnectHandlerComponent : HandlerComponent
     
     public StatelessConnectHandlerComponent(PacketHandler handler) : base(handler, nameof(StatelessConnectHandlerComponent))
     {
+        SetActive(true);
+        
+        RequiresHandshake = true;
+        
         _handshakeSecret = new byte[2][];
         _activeSecret = byte.MaxValue;
         _lastChallengeSuccessAddress = null;
@@ -202,9 +206,21 @@ public class StatelessConnectHandlerComponent : HandlerComponent
         }
     }
 
-    public override void Outgoing(FBitWriter packet, FOutPacketTraits traits)
+    public override void Outgoing(ref FBitWriter packet, FOutPacketTraits traits)
     {
-        base.Outgoing(packet, traits);
+        const bool bHandshakePacket = false;
+        
+        var newPacket = new FBitWriter(GetAdjustedSizeBits((int)packet.GetNumBits()) + 1, true, false);
+
+        if (_magicHeader.Length > 0)
+        {
+            newPacket.SerializeBits(_magicHeader, _magicHeader.Length);
+        }
+        
+        newPacket.WriteBit(bHandshakePacket);
+        newPacket.SerializeBits(packet.GetData(), packet.GetNumBits());
+
+        packet = newPacket;
     }
 
     public override void IncomingConnectionless(FIncomingPacketRef packetRef)

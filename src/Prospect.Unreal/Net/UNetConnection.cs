@@ -6,6 +6,7 @@ using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net.Channels;
 using Prospect.Unreal.Net.Packets.Bunch;
+using Prospect.Unreal.Net.Packets.Control;
 using Prospect.Unreal.Net.Packets.Header;
 using Prospect.Unreal.Net.Packets.Header.Sequence;
 using Prospect.Unreal.Net.Player;
@@ -23,11 +24,16 @@ public abstract class UNetConnection : UPlayer
     public const int MaxChSequence = 1024;
     public const int MaxBunchHeaderBits = 256;
     public const int MaxPacketSize = 1024;
+    public const int MaxPacketReliableSequenceHeaderBits = 32 + FNetPacketNotify.MaxSequenceHistoryLength;
+    public const int MaxPacketInfoHeaderBits = 1 /* bHasPacketInfo */ + NumBitsForJitterClockTimeInHeader  + 1 /* bHasServerFrameTime */ + 8 /* ServerFrameTime */;
+    public const int MaxPacketHeaderBits = MaxPacketReliableSequenceHeaderBits + MaxPacketInfoHeaderBits;
+    public const int MaxPacketTrailerBits = 1;
 
     public const int DefaultMaxChannelSize = 32767;
 
-    public const int MaxJitterClockTimeValue = 1023;
     public const int NumBitsForJitterClockTimeInHeader = 10;
+    public const int MaxJitterClockTimeValue = (1 << NumBitsForJitterClockTimeInHeader) - 1;
+    public const int MaxJitterPrecisionInMS = 1000;
 
     public const EEngineNetworkVersionHistory DefaultEngineNetworkProtocolVersion = EEngineNetworkVersionHistory.HISTORY_ENGINENETVERSION_LATEST;
     public const uint DefaultGameNetworkProtocolVersion = 0;
@@ -48,6 +54,24 @@ public abstract class UNetConnection : UPlayer
     private double _lastTime;
     private double _lastSendTime;
     private double _lastTickTime;
+
+    /// <summary>
+    ///     Did we write the dummy PacketInfo in the current SendBuffer
+    /// </summary>
+    private bool _bSendBufferHasDummyPacketInfo;
+    
+    /// <summary>
+    ///     Stores the bit number where we wrote the dummy packet info in the packet header
+    /// </summary>
+    private FBitWriterMark _headerMarkForPacketInfo;
+
+    /// <summary>
+    ///     Timestamp of the last packet sent
+    /// </summary>
+    private double _previousPacketSendTimeInS;
+
+    private bool _bFlushedNetThisFrame;
+    private bool _bAutoFlush;
 
     public UNetConnection()
     {
@@ -70,6 +94,10 @@ public abstract class UNetConnection : UPlayer
         ClientLoginState = EClientLoginState.Invalid;
         ExpectedClientLoginMsgType = 0;
         PacketOverhead = 0;
+        Challenge = string.Empty;
+        SendBuffer = new FBitWriter(0);
+        OutLagTime = new double[256];
+        OutLagPacketId = new int[256];
         InPacketId = -1;
         OutPacketId = 0;
         OutAckPacketId = -1;
@@ -96,9 +124,9 @@ public abstract class UNetConnection : UPlayer
     /// <summary>
     ///     Package map between local and remote. (negotiates net serialization)
     /// </summary>
-    public UPackageMapClient? PackageMap { get; private set; }
+    public UPackageMap? PackageMap { get; private set; }
     
-    public List<UChannel> OpenChannels { get; private set; }
+    public List<UChannel> OpenChannels { get; }
     
     /// <summary>
     ///     Maximum packet size.
@@ -116,9 +144,42 @@ public abstract class UNetConnection : UPlayer
     public IPEndPoint? RemoteAddr { get; protected set; }
     
     /// <summary>
+    ///     Number of bits used for the packet id in the current packet.
+    /// </summary>
+    public int NumPacketIdBits { get; private set; }
+    
+    /// <summary>
+    ///     Number of bits used for bunches in the current packet.
+    /// </summary>
+    public int NumBunchBits { get; private set; }
+    
+    /// <summary>
+    ///     Number of bits used for acks in the current packet.
+    /// </summary>
+    public int NumAckBits { get; private set; }
+    
+    /// <summary>
+    ///     Number of bits used for padding in the current packet.
+    /// </summary>
+    public int NumPaddingBits { get; private set; }
+    
+    /// <summary>
+    ///     The maximum number of bits all packet handlers will reserve.
+    /// </summary>
+    public int MaxPacketHandlerBits { get; private set; }
+    
+    /// <summary>
     ///     State this connection is in.
     /// </summary>
     public EConnectionState State { get; private set; }
+    
+    /// <summary>
+    ///     This functionality is used during replay checkpoints for example, so we can re-use the existing connection and channels to record
+    ///     a version of each actor and capture all properties that have changed since the actor has been alive...
+    ///     This will also act as if it needs to re-open all the channels, etc.
+    ///       NOTE - This doesn't force all exports to happen again though, it will only export new stuff, so keep that in mind.
+    /// </summary>
+    public EResendAllDataState ResendAllDataState { get; set; }
     
     /// <summary>
     ///     PacketHandler, for managing layered handler components, which modify packets as they are sent/received
@@ -130,7 +191,7 @@ public abstract class UNetConnection : UPlayer
     /// <summary>
     ///     Used to determine what the next expected control channel msg type should be from a connecting client
     /// </summary>
-    public byte ExpectedClientLoginMsgType { get; private set; }
+    public NMT ExpectedClientLoginMsgType { get; private set; }
     
     /// <summary>
     ///     Reference to the PacketHandler component, for managing stateless connection handshakes
@@ -141,6 +202,20 @@ public abstract class UNetConnection : UPlayer
     ///     Bytes overhead per packet sent.
     /// </summary>
     public int PacketOverhead { get; private set; }
+    
+    /// <summary>
+    ///     Server-generated challenge.
+    /// </summary>
+    public string Challenge { get; private set; }
+    
+    /// <summary>
+    ///     Queued up bits waiting to send
+    /// </summary>
+    public FBitWriter SendBuffer { get; private set; }
+    
+    public double[] OutLagTime { get; }
+    
+    public int[] OutLagPacketId { get; }
     
     /// <summary>
     ///     Full incoming packet index.
@@ -164,6 +239,38 @@ public abstract class UNetConnection : UPlayer
     ///     Related to OutAckPacketId which is tha last successfully delivered PacketId.
     /// </summary>
     public int LastNotifiedPacketId { get; private set; }
+    
+    /// <summary>
+    ///     Keep old behavior where we send a packet with only acks even if we have no other outgoing data if we got incoming data
+    /// </summary>
+    public uint HasDirtyAcks { get; set; }
+    
+    /// <summary>
+    ///     Most recently sent bunch start.
+    /// </summary>
+    public FBitWriterMark LastStart { get; set; }
+    
+    /// <summary>
+    ///     Most recently sent bunch end.
+    /// </summary>
+    public FBitWriterMark LastEnd { get; set; }
+    
+    /// <summary>
+    ///     Whether to allow merging.
+    /// </summary>
+    public bool AllowMerge { get; set; }
+    
+    /// <summary>
+    ///     Whether contents are time-sensitive.
+    /// </summary>
+    public bool TimeSensitive { get; set; }
+    
+    /// <summary>
+    ///     Most recent outgoing bunch.
+    /// </summary>
+    public FOutBunch? LastOutBunch { get; set; }
+    
+    public FOutBunch LastOut { get; set; }
 
     public int MaxChannelSize { get; }
     public UChannel?[] Channels { get; }
@@ -209,8 +316,9 @@ public abstract class UNetConnection : UPlayer
 
         InitHandler();
 
-        PackageMap = new UPackageMapClient();
-        PackageMap.Initialize(this, Driver.GuidCache);
+        var packageMapClient = new UPackageMapClient();
+        packageMapClient.Initialize(this, Driver.GuidCache);
+        PackageMap = packageMapClient;
     }
 
     public abstract void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
@@ -235,10 +343,13 @@ public abstract class UNetConnection : UPlayer
             }
             else
             {
-                // TODO: Close connection, malformed packet.
-                Logger.Fatal("Connection should be closed here");
+                Logger.Fatal("Packet failed PacketHandler processing");
+                Close();
                 return;
             }
+            
+            // See if we receive a packet that wasn't fully consumed by the handler before the handler is initialized.
+            // TODO: Handler.IsFullyInitialized
         }
 
         // Handle an incoming raw packet from the driver.
@@ -273,7 +384,7 @@ public abstract class UNetConnection : UPlayer
                 {
                     ReceivedPacket(reader);
                     
-                    // TODO: Flush out of order cache
+                    // TODO: FlushPacketOrderCache
                 }
             }
         }
@@ -301,8 +412,8 @@ public abstract class UNetConnection : UPlayer
 
             if (!PacketNotify.ReadHeader(ref header, reader))
             {
-                // TODO: Close connection, malformed packet.
                 Logger.Fatal("Failed to read PacketHeader");
+                Close();
                 return;
             }
 
@@ -516,7 +627,9 @@ public abstract class UNetConnection : UPlayer
                 {
                     if (bunch.bReliable || bunch.bOpen)
                     {
-                        if (!UPackageMap.StaticSerializeName(reader, out var chName) || reader.IsError())
+                        FName? chName = null;
+                        
+                        if (!UPackageMap.StaticSerializeName(reader, ref chName) || reader.IsError())
                         {
                             // TODO: Close connection
                             Logger.Fatal("Channel name serialization failed");
@@ -773,10 +886,19 @@ public abstract class UNetConnection : UPlayer
             }
             
             // We do want to let the other side know about the ack, so even if there are no other outgoing data when we tick the connection we will send an ackpacket.
-            // TimeSensitive = 1;
-            // ++HasDirtyAcks;
+            TimeSensitive = true;
+            ++HasDirtyAcks;
             
-            // TODO: FlushNet if HasDirtyAcks
+            if (HasDirtyAcks >= FNetPacketNotify.MaxSequenceHistoryLength)
+            {
+                Logger.Warning("ReceivedPacket - Too many received packets to ack ({Acks}) since last sent packet. InSeq: {Seq} {Conn} NextOutGoingSeq: {OutSeq}", HasDirtyAcks, PacketNotify.GetInSeq().Value, this, PacketNotify.GetOutSeq().Value);
+                
+                FlushNet();
+                if (HasDirtyAcks != 0)
+                {
+                    FlushNet();
+                }
+            }
         }
     }
 
@@ -874,12 +996,24 @@ public abstract class UNetConnection : UPlayer
         }
         
         Handler = new PacketHandler();
-        Handler.Initialize(false);
+        Handler.Initialize(HandlerMode.Server /* Mode */, UNetConnection.MaxPacketSize * 8 ,false);
         
         StatelessConnectComponent = (StatelessConnectHandlerComponent) Handler.AddHandler<StatelessConnectHandlerComponent>();
         StatelessConnectComponent.SetDriver(Driver);
 
         Handler.InitializeComponents();
+
+        MaxPacketHandlerBits = Handler.GetTotalReservedPacketBits();
+    }
+
+    public void Close()
+    {
+        // TODO: Implement
+    }
+
+    public long GetMaxSingleBunchSizeBits()
+    {
+        return (MaxPacket * 8) - MaxBunchHeaderBits - MaxPacketTrailerBits - MaxPacketHeaderBits - MaxPacketHandlerBits;
     }
 
     public UChannel CreateChannelByName(FName chName, EChannelCreateFlags createFlags, int chIndex)
@@ -933,6 +1067,455 @@ public abstract class UNetConnection : UPlayer
         return channel;
     }
 
+    public void SendChallengeControlMessage()
+    {
+        if (State != EConnectionState.USOCK_Invalid && State != EConnectionState.USOCK_Closed && Driver != null)
+        {
+            Challenge = "E660A966";
+            SetExpectedClientLoginMsgType(NMT.Login);
+            NMT_Challenge.Send(this, Challenge);
+            FlushNet();
+        }
+    }
+
+    public int SendRawBunch(FOutBunch bunch, bool inAllowMerge)
+    {
+        ValidateSendBuffer();
+
+        if (Driver == null || bunch.ReceivedAck || bunch.IsError())
+        {
+            throw new UnrealNetException();
+        }
+        
+        // TODO: Increment things
+        TimeSensitive = true;
+
+        using var sendBunchHeader = new FBitWriter(MaxBunchHeaderBits);
+
+        var bIsOpenOrClose = bunch.bOpen || bunch.bClose;
+        var bIsOpenOrReliable = bunch.bOpen || bunch.bReliable;
+        
+        sendBunchHeader.WriteBit(bIsOpenOrClose);
+
+        if (bIsOpenOrClose)
+        {
+            sendBunchHeader.WriteBit(bunch.bOpen);
+            sendBunchHeader.WriteBit(bunch.bClose);
+            
+            if (bunch.bClose)
+            {
+                sendBunchHeader.SerializeInt((uint)bunch.CloseReason, (uint)EChannelCloseReason.MAX);
+            }
+        }
+        
+        sendBunchHeader.WriteBit(bunch.bIsReplicationPaused);
+        sendBunchHeader.WriteBit(bunch.bReliable);
+
+        sendBunchHeader.SerializeIntPacked((uint)bunch.ChIndex);
+        
+        sendBunchHeader.WriteBit(bunch.bHasPackageMapExports);
+        sendBunchHeader.WriteBit(bunch.bHasMustBeMappedGUIDs);
+        sendBunchHeader.WriteBit(bunch.bPartial);
+
+        if (bunch.bReliable && !IsInternalAck())
+        {
+            // 14 > 24
+            sendBunchHeader.WriteIntWrapped((uint)bunch.ChSequence, MaxChSequence);
+        }
+
+        if (bunch.bPartial)
+        {
+            sendBunchHeader.WriteBit(bunch.bPartialInitial);
+            sendBunchHeader.WriteBit(bunch.bPartialFinal);
+        }
+
+        if (bIsOpenOrReliable)
+        {
+            var name = bunch.ChName;
+            UPackageMap.StaticSerializeName(sendBunchHeader, ref name);
+        }
+        
+        sendBunchHeader.WriteIntWrapped((uint)bunch.GetNumBits(), (uint)(MaxPacket * 8));
+
+        if (sendBunchHeader.IsError())
+        {
+            Logger.Fatal("SendBunchHeader Error: Bunch = {Bunch}", bunch);
+        }
+        
+        // Remember start position.
+        AllowMerge = inAllowMerge;
+        bunch.Time = Driver.GetElapsedTime();
+
+        var bunchHeaderBits = sendBunchHeader.GetNumBits();
+        var bunchBits = bunch.GetNumBits();
+        
+        // If the bunch does not fit in the current packet, 
+        // flush packet now so that we can report collected stats in the correct scope
+        PrepareWriteBitsToSendBuffer(bunchHeaderBits, bunchBits);
+        
+        // Write the bits to the buffer and remember the packet id used
+        bunch.PacketId = WriteBitsToSendBufferInternal(sendBunchHeader.GetData(), (int)bunchHeaderBits, bunch.GetData(), (int)bunchBits, EWriteBitsDataType.Bunch);
+
+        if (PackageMap != null && bunch.bHasPackageMapExports)
+        {
+            PackageMap.NotifyBunchCommit(bunch.PacketId, bunch);
+        }
+
+        if (bunch.bHasPackageMapExports)
+        {
+            // TOOD: Increment things
+        }
+        
+        FlushNet();
+
+        return bunch.PacketId;
+    }
+    private void PrepareWriteBitsToSendBuffer(long sizeInBits, long extraSizeInBits)
+    {
+        ValidateSendBuffer();
+
+        var totalSizeInBits = sizeInBits + extraSizeInBits;
+        
+        // Flush if we can't add to current buffer
+        if (totalSizeInBits > GetFreeSendBufferBits())
+        {
+            FlushNet();
+        }
+        
+        // If this is the start of the queue, make sure to add the packet id
+        if (SendBuffer.GetNumBits() == 0 && !IsInternalAck())
+        {
+            // Write Packet Header, before sending the packet we will go back and rewrite the data
+            WritePacketHeader(SendBuffer);
+            
+            // Pre-write the bits for the packet info
+            WriteDummyPacketInfo(SendBuffer);
+            
+            // We do not allow the first bunch to merge with the ack data as this will "revert" the ack data.
+            AllowMerge = false;
+	
+            // Update stats for PacketIdBits and ackdata (also including the data used for packet RTT and saturation calculations)
+            var bitsWritten = (int)SendBuffer.GetNumBits();
+            
+            NumPacketIdBits += FNetPacketNotify.SequenceNumberBits;
+            NumAckBits += bitsWritten - FNetPacketNotify.SequenceNumberBits;
+
+            ValidateSendBuffer();
+        }
+    }
+
+    private void WritePacketHeader(FBitWriter writer)
+    {
+        // If this is a header refresh, we only serialize the updated serial number information
+        var bIsHeaderUpdate = writer.GetNumBits() > 0;
+        
+        // Header is always written first in the packet
+        var restore = new FBitWriterMark(writer);
+        
+        writer.Num = 0;
+        
+        // Write notification header or refresh the header if used space is the same.
+        var bWroteHeader = PacketNotify.WriteHeader(writer, bIsHeaderUpdate);
+        
+        // Jump back to where we came from.
+        if (bIsHeaderUpdate)
+        {
+            restore.PopWithoutClear(writer);
+            
+            // if we wrote the header and successfully refreshed the header status we no longer has any dirty acks
+            if (bWroteHeader)
+            {
+                HasDirtyAcks = 0;
+            }
+        }
+    }
+
+    private void WriteFinalPacketInfo(FBitWriter writer, double packetSentTimeInS)
+    {
+        if (!_bSendBufferHasDummyPacketInfo)
+        {
+            // PacketInfo payload is not included in this SendBuffer; nothing to rewrite
+            return;
+        }
+
+        var currentMark = new FBitWriterMark(writer);
+        
+        // Go back to write over the dummy bits
+        _headerMarkForPacketInfo.PopWithoutClear(writer);
+        
+        // Write Jitter clock time
+        {
+            var deltaSendTimeInMS = (packetSentTimeInS - _previousPacketSendTimeInS) * 1000.0;
+            var clockTimeMilliseconds = 0;
+            
+            // If the delta is over our max precision, we send MAX value and jitter will be ignored by the receiver.
+            if (deltaSendTimeInMS >= MaxJitterPrecisionInMS)
+            {
+                clockTimeMilliseconds = MaxJitterClockTimeValue;
+            }
+            else
+            {
+                // TODO: Proper
+                // Get the fractional part (milliseconds) of the clock time
+                clockTimeMilliseconds = 0;
+
+                // Ensure we don't overflow
+                clockTimeMilliseconds &= MaxJitterClockTimeValue;
+            }
+            
+            writer.SerializeInt((uint)clockTimeMilliseconds, MaxJitterClockTimeValue + 1);
+
+            _previousPacketSendTimeInS = packetSentTimeInS;
+        }
+        
+        // Write server frame time
+        {
+            var bHasServerFrameTime = LastHasServerFrameTime;
+            writer.WriteBit(bHasServerFrameTime);
+
+            if (bHasServerFrameTime && Driver!.IsServer())
+            {
+                // Write data used to calculate link latency
+                // TODO: Proper
+                const int FrameTime = 123;
+                var frameTimeByte = (byte) Math.Min(Math.Floor((double)(FrameTime * 1000)), 255);
+                writer.WriteByte(frameTimeByte);
+            }
+        }
+        
+        _headerMarkForPacketInfo.Reset();
+        
+        // Revert to the correct bit writing place
+        currentMark.PopWithoutClear(writer);
+    }
+
+    private void WriteDummyPacketInfo(FBitWriter writer)
+    {
+        var bHasPacketInfoPayload = _bFlushedNetThisFrame == false;
+        
+        writer.WriteBit(bHasPacketInfoPayload);
+
+        if (bHasPacketInfoPayload)
+        {
+            // Pre-insert the bits since the final time values will be calculated and inserted right before LowLevelSend
+            _headerMarkForPacketInfo.Init(writer);
+
+            Span<byte> dummyJitterClockTime = stackalloc byte[4];
+            writer.SerializeBits(dummyJitterClockTime, NumBitsForJitterClockTimeInHeader);
+
+            var bHasServerFrameTime = LastHasServerFrameTime;
+            writer.WriteBit(bHasServerFrameTime);
+
+            if (bHasServerFrameTime && Driver!.IsServer()) // false
+            {
+                const byte dummyFrameTimeByte = 0;
+                writer.WriteByte(dummyFrameTimeByte);
+            }
+        }
+
+        _bSendBufferHasDummyPacketInfo = bHasPacketInfoPayload;
+    }
+
+    private int WriteBitsToSendBufferInternal(byte[]? bits, int sizeInBits, byte[]? extraBits, int extraSizeInBits, EWriteBitsDataType dataType)
+    {
+        // Remember start position in case we want to undo this write, no meaning to undo the header write as this is only used to pop bunches and the header should not count towards the bunch
+        // Store this after the possible flush above so we have the correct start position in the case that we do flush
+        LastStart = new FBitWriterMark(SendBuffer);
+        
+        // Add the bits to the queue
+        if (sizeInBits != 0)
+        {
+            if (bits == null)
+            {
+                throw new UnrealNetException("bits should not be null if a size is set");
+            }
+            
+            SendBuffer.SerializeBits(bits, sizeInBits);
+            ValidateSendBuffer();
+        }
+        
+        // Add any extra bits
+        if (extraSizeInBits != 0)
+        {
+            if (extraBits == null)
+            {
+                throw new UnrealNetException("extraBits should not be null if a size is set");
+            }
+            
+            SendBuffer.SerializeBits(extraBits, extraSizeInBits);
+            ValidateSendBuffer();
+        }
+
+        // 242 after
+        var rememberedPacketId = OutPacketId;
+
+        if (dataType == EWriteBitsDataType.Bunch)
+        {
+            NumBunchBits += sizeInBits + extraSizeInBits;
+        }
+        
+        // Flush now if we are full
+        if (GetFreeSendBufferBits() == 0)
+        {
+            FlushNet();
+        }
+
+        return rememberedPacketId;
+    }
+
+    private int WriteBitsToSendBuffer(byte[]? bits, int sizeInBits, byte[]? extraBits = null, int extraSizeInBits = 0, EWriteBitsDataType dataType = EWriteBitsDataType.Unknown)
+    {
+        // Flush packet as needed and begin new packet
+        PrepareWriteBitsToSendBuffer(sizeInBits, extraSizeInBits);
+        
+        // Write the data and flush if the packet is full, return value is the packetId into which the data was written
+        return WriteBitsToSendBufferInternal(bits, sizeInBits, extraBits, extraSizeInBits, dataType);
+    }
+
+    /// <summary>
+    ///     Returns number of bits left in current packet that can be used without causing a flush
+    /// </summary>
+    private long GetFreeSendBufferBits()
+    {
+        // If we haven't sent anything yet, make sure to account for the packet header + trailer size
+        // Otherwise, we only need to account for trailer size
+        var extraBits = (SendBuffer.GetNumBits() > 0) ? MaxPacketTrailerBits : MaxPacketHeaderBits + MaxPacketTrailerBits;
+        var numberOfFreeBits = SendBuffer.GetMaxBits() - (SendBuffer.GetNumBits() + extraBits);
+
+        return numberOfFreeBits;
+    }
+
+    private void ValidateSendBuffer()
+    {
+        if (SendBuffer.IsError())
+        {
+            Logger.Fatal("ValidateSendBuffer: Out.IsError() == true. NumBits: {A}, NumBytes: {B}, MaxBits: {C}", SendBuffer.GetNumBits(), SendBuffer.GetNumBytes(), SendBuffer.GetMaxBits());
+        }
+    }
+
+    private protected void InitSendBuffer()
+    {
+        var finalBufferSize = (MaxPacket * 8) - MaxPacketHandlerBits;
+        if (finalBufferSize == SendBuffer.GetMaxBits())
+        {
+            SendBuffer.Reset();
+        }
+        else
+        {
+            SendBuffer = new FBitWriter(finalBufferSize);
+        }
+
+        _headerMarkForPacketInfo.Reset();
+        
+        ResetPacketBitCounts();
+        
+        ValidateSendBuffer();
+    }
+
+    private void ResetPacketBitCounts()
+    {
+        NumPacketIdBits = 0;
+        NumBunchBits = 0;
+        NumAckBits = 0;
+        NumPaddingBits = 0;
+    }
+
+    private void FlushNet()
+    {
+        if (Driver == null)
+        {
+            throw new UnrealNetException();
+        }
+        
+        // Update info.
+        ValidateSendBuffer();
+        LastEnd = new FBitWriterMark();
+        TimeSensitive = false;
+        
+        // If there is any pending data to send, send it.
+        if (SendBuffer.GetNumBits() != 0 || HasDirtyAcks != 0 || (Driver.GetElapsedTime() - _lastSendTime > Driver.KeepAliveTime && !IsInternalAck() && State != EConnectionState.USOCK_Closed))
+        {
+            // Due to the PacketHandler handshake code, servers must never send the client data,
+            // before first receiving a client control packet (which is taken as an indication of a complete handshake).
+            if (!HasReceivedClientPacket())
+            {
+                Logger.Debug("Attempting to send data before handshake is complete. {Channel}", this);
+                Close();
+                InitSendBuffer();
+                return;
+            }
+
+            var traits = new FOutPacketTraits();
+            
+            // If sending keepalive packet or just acks, still write the packet header
+            if (SendBuffer.GetNumBits() == 0)
+            {
+                WriteBitsToSendBuffer(null, 0); // This will force the packet header to be written
+
+                traits.IsKeepAlive = true;
+            }
+
+            if (Handler != null)
+            {
+                Handler.OutgoingHigh(SendBuffer);
+            }
+
+            var packetSentTimeInS = FPlatformTime.Seconds();
+            
+            // Write the UNetConnection-level termination bit
+            SendBuffer.WriteBit(true);
+            
+            // Refresh outgoing header with latest data
+            if (!IsInternalAck())
+            {
+                // if we update ack, we also update received ack associated with outgoing seq
+                // so we know how many ack bits we need to write (which is updated in received packet)
+                WritePacketHeader(SendBuffer);
+
+                WriteFinalPacketInfo(SendBuffer, packetSentTimeInS);
+            }
+            
+            ValidateSendBuffer();
+
+            var numStrayBits = SendBuffer.GetNumBits();
+
+            traits.NumAckBits = (uint)NumAckBits;
+            traits.NumBunchBits = (uint)NumBunchBits;
+
+            // Removed packet emulation
+
+            if (Driver.IsNetResourceValid())
+            {
+                LowLevelSend(SendBuffer.GetData(), (int)SendBuffer.GetNumBits(), traits);
+            }
+            
+            // Update stuff.
+            var index = OutPacketId & (OutLagPacketId.Length - 1);
+            
+            // Remember the actual time this packet was sent out, so we can compute ping when the ack comes back
+            OutLagPacketId[index] = OutPacketId;
+            OutLagTime[index] = packetSentTimeInS;
+            
+            // Increase outgoing sequence number
+            if (!IsInternalAck())
+            {
+                PacketNotify.CommitAndIncrementOutSeq();
+            }
+            
+            // TODO: Make sure that we always push an ChannelRecordEntry for each transmitted packet even if it is empty
+
+            ++OutPacketId;
+            
+            // TODO: Increment things
+
+            _lastSendTime = Driver.GetElapsedTime();
+
+            _bFlushedNetThisFrame = true;
+            
+            InitSendBuffer();
+        }
+    }
+
     private int GetFreeChannelIndex(FName chName)
     {
         int chIndex;
@@ -984,7 +1567,7 @@ public abstract class UNetConnection : UPlayer
         ClientLoginState = newState;
     }
 
-    private protected void SetExpectedClientLoginMsgType(byte newType)
+    private protected void SetExpectedClientLoginMsgType(NMT newType)
     {
         if (ExpectedClientLoginMsgType == newType)
         {
@@ -995,6 +1578,33 @@ public abstract class UNetConnection : UPlayer
         Logger.Verbose("SetExpectedClientLoginMsgType: Type changing from [{Old}] to [{New}]", ExpectedClientLoginMsgType, newType);
 
         ExpectedClientLoginMsgType = newType;
+    }
+
+    public bool IsClientMsgTypeValid(NMT clientMsgType)
+    {
+        if (ClientLoginState == EClientLoginState.LoggingIn)
+        {
+            if (clientMsgType != ExpectedClientLoginMsgType)
+            {
+                Logger.Debug("IsClientMsgTypeValid FAILED: (ClientMsgType != ExpectedClientLoginMsgType) Remote Address={Address}", LowLevelGetRemoteAddress());
+                return false;
+            }
+        }
+        else
+        {
+            if (clientMsgType == NMT.Hello || clientMsgType == NMT.Login)
+            {
+                Logger.Debug("IsClientMsgTypeValid FAILED: Invalid msg after being logged in - Remote Address={Address}", LowLevelGetRemoteAddress());
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool HasReceivedClientPacket()
+    {
+        return IsInternalAck() || !Driver!.IsServer() || InReliable[0] != InitInReliable;
     }
 
     public bool IsInternalAck()

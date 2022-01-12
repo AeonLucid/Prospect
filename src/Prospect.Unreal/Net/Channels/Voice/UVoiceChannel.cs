@@ -1,13 +1,13 @@
 ﻿using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Net.Packets.Bunch;
 
-namespace Prospect.Unreal.Net.Channels;
+namespace Prospect.Unreal.Net.Channels.Voice;
 
-public class UControlChannel : UChannel
+public class UVoiceChannel : UChannel
 {
-    public UControlChannel()
+    public UVoiceChannel()
     {
-        ChType = EChannelType.CHTYPE_Control;
+        ChType = EChannelType.CHTYPE_Voice;
         ChName = UnrealNames.FNames[UnrealNameKey.Control];
     }
 

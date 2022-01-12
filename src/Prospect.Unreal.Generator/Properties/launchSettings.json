@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Roslyn": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\Prospect.Unreal\\Prospect.Unreal.csproj"
+    }
+  }
+}

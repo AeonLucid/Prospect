@@ -1,6 +1,7 @@
 ﻿using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net.Packets.Bunch;
+using Prospect.Unreal.Serialization;
 using Serilog;
 
 namespace Prospect.Unreal.Net.Channels;
@@ -14,7 +15,7 @@ public abstract class UChannel
     /// <summary>
     ///     Owner connection.
     /// </summary>
-    public UNetConnection Connection { get; set; }
+    public UNetConnection? Connection { get; set; }
 
     /// <summary>
     ///     If OpenedLocally is true, this means we have acknowledged the packet we sent the bOpen bunch on.
@@ -123,7 +124,10 @@ public abstract class UChannel
     /// </summary>
     public FInBunch? InRec { get; set; }
 
-    // public FOutBunch OutRec { get; set; }
+    /// <summary>
+    ///     Outgoing reliable unacked data.
+    /// </summary>
+    public FOutBunch? OutRec { get; set; }
 
     /// <summary>
     ///     Partial bunch we are receiving (incoming partial bunches are appended to this).
@@ -413,8 +417,7 @@ public abstract class UChannel
                 // Remember the range.
                 // In the case of a non partial, HandleBunch == Bunch
                 // In the case of a partial, HandleBunch should == InPartialBunch, and Bunch should be the last bunch.
-                OpenPacketId.First = handleBunch.PacketId;
-                OpenPacketId.Last = bunch.PacketId;
+                OpenPacketId = new FPacketIdRange(handleBunch.PacketId, bunch.PacketId);
                 OpenAcked = true;
 
                 Logger.Verbose("ReceivedNextBunch: Channel now fully open. ChIndex: {ChIndex}, OpenPacketId.First: {First}, OpenPacketId.Last: {Last}", ChIndex, OpenPacketId.First, OpenPacketId.Last);
@@ -501,12 +504,320 @@ public abstract class UChannel
 
     protected abstract void ReceivedBunch(FInBunch bunch);
 
+    public virtual FPacketIdRange SendBunch(FOutBunch bunch, bool merge)
+    {
+        if (Connection == null || Connection.Driver == null)
+        {
+            throw new UnrealNetException();
+        }
+        
+        if (ChIndex == -1)
+        {
+            return new FPacketIdRange(UnrealConstants.IndexNone);
+        }
+
+        if (IsBunchTooLarge(Connection!, bunch))
+        {
+            Logger.Error("Attempted to send bunch exceeding max allowed size. BunchSize={Size}, MaximumSize={MaxSize}", bunch.GetNumBytes(), NetMaxConstructedPartialBunchSizeBytes);
+            bunch.SetError();
+            return new FPacketIdRange(UnrealConstants.IndexNone);
+        }
+
+        if (Closing || Connection.Channels[ChIndex] != this || bunch.IsError() || bunch.bHasPackageMapExports)
+        {
+            throw new UnrealNetException();
+        }
+
+        // Set bunch flags.
+        var bDormancyClose = bunch.bClose && (bunch.CloseReason == EChannelCloseReason.Dormancy);
+
+        if (OpenedLocally && ((OpenPacketId.First == UnrealConstants.IndexNone) || ((Connection.ResendAllDataState == EResendAllDataState.None) && !bDormancyClose)))
+        {
+            var bOpenBunch = true;
+
+            if (Connection.ResendAllDataState == EResendAllDataState.SinceCheckpoint)
+            {
+                bOpenBunch = !bOpenedForCheckpoint;
+                bOpenedForCheckpoint = true;
+            }
+
+            if (bOpenBunch)
+            {
+                bunch.bOpen = true;
+                OpenTemporary = !bunch.bReliable;
+            }
+        }
+
+        if (OpenTemporary && bunch.bReliable)
+        {
+            throw new UnrealNetException("Channel was opened temporarily, we are never allowed to send reliable packets on it");
+        }
+
+        // This is the max number of bits we can have in a single bunch
+        var MAX_SINGLE_BUNCH_SIZE_BITS = Connection.GetMaxSingleBunchSizeBits();
+
+        // Max bytes we'll put in a partial bunch
+        var MAX_SINGLE_BUNCH_SIZE_BYTES = MAX_SINGLE_BUNCH_SIZE_BITS / 8;
+
+        // Max bits will put in a partial bunch (byte aligned, we dont want to deal with partial bytes in the partial bunches)
+        var MAX_PARTIAL_BUNCH_SIZE_BITS = MAX_SINGLE_BUNCH_SIZE_BYTES * 8;
+
+        var outgoingBunches = new List<FOutBunch>();
+
+        // Add any export bunches
+        // Replay connections will manage export bunches separately.
+        if (!Connection.IsInternalAck())
+        {
+            // TODO: AppendExportBunches
+        }
+
+        if (outgoingBunches.Count != 0)
+        {
+            // Don't merge if we are exporting guid's
+            // We can't be for sure if the last bunch has exported guids as well, so this just simplifies things
+            merge = false;
+        }
+
+        if (Connection.Driver.IsServer())
+        {
+            // Append any "must be mapped" guids to front of bunch from the packagemap
+            // TODO: AppendMustBeMappedGuids
+
+            if (bunch.bHasMustBeMappedGUIDs)
+            {
+                merge = false;
+            }
+        }
+
+        //-----------------------------------------------------
+        // Contemplate merging.
+        //-----------------------------------------------------
+        
+        // TODO: Merge
+        // var preExistingBits = 0;
+        FOutBunch? outBunch = null;
+        
+        // if (merge
+        //     && Connection.LastOut.ChIndex == bunch.ChIndex
+        //     && Connection.LastOut.bReliable == bunch.bReliable
+        //     && Connection.AllowMerge
+        //     && Connection.LastEnd.GetNumBits() != 0
+        //     && Connection.LastEnd.GetNumBits() == Connection.SendBuffer.GetNumBits()
+        //     && Connection.LastOut.GetNumBits() + bunch.GetNumBits() <= MAX_SINGLE_BUNCH_SIZE_BITS)
+        // {
+        //     
+        // }
+
+        //-----------------------------------------------------
+        // Possibly split large bunch into list of smaller partial bunches
+        //-----------------------------------------------------
+        if (bunch.GetNumBits() > MAX_SINGLE_BUNCH_SIZE_BITS)
+        {
+            var data = bunch.GetData().AsSpan();
+            var bitsLeft = bunch.GetNumBits();
+            
+            merge = false;
+
+            while (bitsLeft > 0)
+            {
+                var partialBunch = new FOutBunch(this, false);
+                var bitsThisBunch = (long) Math.Min(bitsLeft, MAX_PARTIAL_BUNCH_SIZE_BITS);
+                
+                partialBunch.SerializeBits(data, bitsThisBunch);
+                
+                outgoingBunches.Add(partialBunch);
+
+                bitsLeft -= bitsThisBunch;
+                data = data.Slice((int)(bitsThisBunch >> 3));
+                
+                Logger.Debug("Making partial bunch from content bunch. bitsThisBunch: {Bits} bitsLeft: {Left}", bitsThisBunch, bitsLeft);
+            }
+        }
+        else
+        {
+            outgoingBunches.Add(bunch);
+        }
+
+        //-----------------------------------------------------
+        // Send all the bunches we need to
+        //	Note: this is done all at once. We could queue this up somewhere else before sending to Out.
+        //-----------------------------------------------------
+        var packetIdRange = new FPacketIdRange();
+        var bOverflowsReliable = (NumOutRec + outgoingBunches.Count >= UNetConnection.ReliableBuffer + (bunch.bClose ? 1 : 0));
+
+        if (bunch.bReliable && bOverflowsReliable)
+        {
+            // TODO: Send NMT_Failure
+            // TODO: FlushNet(true);
+            Connection.Close();
+
+            throw new NotImplementedException();
+            return packetIdRange;
+        }
+
+        if (outgoingBunches.Count > 1)
+        {
+            Logger.Debug("Sending {Count} bunches. Channel: {ChIndex} {Channel}", outgoingBunches.Count, bunch.ChIndex, this);
+        }
+
+        for (var partialNum = 0; partialNum < outgoingBunches.Count; partialNum++)
+        {
+            var nextBunch = outgoingBunches[partialNum];
+
+            nextBunch.bReliable = bunch.bReliable;
+            nextBunch.bOpen = bunch.bOpen;
+            nextBunch.bClose = bunch.bClose;
+            nextBunch.bDormant = bunch.bDormant;
+            nextBunch.CloseReason = bunch.CloseReason;
+            nextBunch.bIsReplicationPaused = bunch.bIsReplicationPaused;
+            nextBunch.ChIndex = bunch.ChIndex;
+            nextBunch.ChType = bunch.ChType;
+            nextBunch.ChName = bunch.ChName;
+
+            if (!nextBunch.bHasPackageMapExports)
+            {
+                nextBunch.bHasMustBeMappedGUIDs |= bunch.bHasMustBeMappedGUIDs;
+            }
+
+            if (outgoingBunches.Count > 1)
+            {
+                nextBunch.bPartial = true;
+                nextBunch.bPartialInitial = partialNum == 0;
+                nextBunch.bPartialFinal = partialNum == outgoingBunches.Count - 1;
+                nextBunch.bOpen &= partialNum == 0;                                             // Only the first bunch should have the bOpen bit set
+                nextBunch.bClose = (bunch.bClose && (outgoingBunches.Count - 1 == partialNum)); // Only last bunch should have bClose bit set
+            }
+
+            var thisOutBunch = PrepBunch(nextBunch, ref outBunch, merge);
+
+            // Update Packet Range
+            var packetId = SendRawBunch(thisOutBunch, merge);
+            if (partialNum == 0)
+            {
+                packetIdRange = new FPacketIdRange(packetId);
+            }
+            else
+            {
+                packetIdRange = new FPacketIdRange(packetIdRange.First, packetId);
+            }
+
+            // Update channel sequence count.
+            Connection.LastOut = thisOutBunch;
+            Connection.LastEnd = new FBitWriterMark(Connection.SendBuffer);
+        }
+        
+        // Update open range if necessary
+        if (bunch.bOpen && (Connection.ResendAllDataState == EResendAllDataState.None))
+        {
+            OpenPacketId = packetIdRange;
+        }
+
+        // Destroy outgoing bunches now that they are sent, except the one that was passed into ::SendBunch
+        //	This is because the one passed in ::SendBunch is the responsibility of the caller, the other bunches in OutgoingBunches
+        //	were either allocated in this function for partial bunches, or taken from the package map, which expects us to destroy them.
+        foreach (var deleteBunch in outgoingBunches)
+        {
+            if (deleteBunch != bunch)
+            {
+                deleteBunch.Dispose();
+            }
+        }
+
+        return packetIdRange;
+    }
+
+    private int SendRawBunch(FOutBunch outBunch, bool merge)
+    {
+        // Send the raw bunch.
+        outBunch.ReceivedAck = false;
+        
+        var packetId = Connection!.SendRawBunch(outBunch, merge);
+        
+        if (OpenPacketId.First == UnrealConstants.IndexNone && OpenedLocally)
+        {
+            OpenPacketId = new FPacketIdRange(packetId);
+        }
+
+        if (outBunch.bClose)
+        {
+            SetClosingFlag();
+        }
+        
+        return packetId;
+    }
+
+    private FOutBunch PrepBunch(FOutBunch bunch, ref FOutBunch? outBunch, bool merge)
+    {
+        if (Connection!.ResendAllDataState != EResendAllDataState.None)
+        {
+            return bunch;
+        }
+        
+        // Find outgoing bunch index.
+        if (bunch.bReliable)
+        {
+            // Find spot, which was guaranteed available by FOutBunch constructor.
+            if (outBunch == null)
+            {
+                if (!(NumOutRec < UNetConnection.ReliableBuffer - 1 + (bunch.bClose ? 1 : 0)))
+                {
+                    Logger.Warning("PrepBunch: Reliable buffer overflow! {Channel}", this);
+                }
+                
+                bunch.Next = null;
+                bunch.ChSequence = ++Connection.OutReliable[ChIndex];
+                NumOutRec++;
+                // TODO: Verify below works as expected
+                outBunch = new FOutBunch(bunch);
+                var outLink = OutRec;
+                
+                while (outLink != null)
+                {
+                    outLink = outLink.Next;
+                }
+
+                if (outLink == null)
+                {
+                    OutRec = outBunch;
+                }
+                else
+                {
+                    outLink.Next = outBunch;
+                }
+            }
+            else
+            {
+                bunch.Next = outBunch.Next;
+                outBunch = bunch;
+            }
+
+            Connection.LastOutBunch = outBunch;
+        }
+        else
+        {
+            outBunch = bunch;
+            Connection.LastOutBunch = null;
+        }
+
+        return outBunch;
+    }
+
+    private void SetClosingFlag()
+    {
+        Closing = true;
+    }
+
     public void ConditionalCleanUp(bool bForDestroy, EChannelCloseReason closeReason)
     {
         throw new NotImplementedException();
     }
 
     private static bool IsBunchTooLarge(UNetConnection connection, FInBunch? bunch)
+    {
+        return !connection.IsInternalAck() && bunch != null && bunch.GetNumBytes() > NetMaxConstructedPartialBunchSizeBytes;
+    }
+
+    private static bool IsBunchTooLarge(UNetConnection connection, FOutBunch? bunch)
     {
         return !connection.IsInternalAck() && bunch != null && bunch.GetNumBytes() > NetMaxConstructedPartialBunchSizeBytes;
     }

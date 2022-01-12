@@ -57,4 +57,13 @@ public readonly struct SequenceHistory
             _storage[i] = reader.ReadUInt32();
         }
     }
+
+    public void Write(FBitWriter writer, uint numWords)
+    {
+        numWords = Math.Min(numWords, WordCount);
+        for (var i = 0; i < numWords; i++)
+        {
+            writer.WriteUInt32(_storage[i]);
+        }
+    }
 }

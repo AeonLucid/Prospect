@@ -1,8 +1,8 @@
 ﻿namespace Prospect.Unreal.Serialization;
 
-public struct FBitReaderMark
+public readonly struct FBitReaderMark
 {
-    private long _pos;
+    private readonly long _pos;
     
     public FBitReaderMark(FBitReader reader)
     {

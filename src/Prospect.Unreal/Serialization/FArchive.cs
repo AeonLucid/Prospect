@@ -1,4 +1,5 @@
-﻿using Prospect.Unreal.Core;
+﻿using System.Runtime.CompilerServices;
+using Prospect.Unreal.Core;
 
 namespace Prospect.Unreal.Serialization;
 
@@ -179,6 +180,50 @@ public abstract class FArchive : IDisposable
     /// </summary>
     protected uint _arGameNetVer;
 
+    public FArchive()
+    {
+        
+    }
+
+    public FArchive(FArchive archive)
+    {
+        _arIsLoading = archive._arIsLoading;
+        _arIsSaving = archive._arIsSaving;
+        _arIsTransacting = archive._arIsTransacting;
+        _arIsTextFormat = archive._arIsTextFormat;
+        _arWantBinaryPropertySerialization = archive._arWantBinaryPropertySerialization;
+        _arForceUnicode = archive._arForceUnicode;
+        _arIsPersistent = archive._arIsPersistent;
+        _arIsError = archive._arIsError;
+        _arIsCriticalError = archive._arIsCriticalError;
+        _arContainsCode = archive._arContainsCode;
+        _arContainsMap = archive._arContainsMap;
+        _arRequiresLocalizationGather = archive._arRequiresLocalizationGather;
+        _arForceByteSwapping = archive._arForceByteSwapping;
+        _arIgnoreArchetypeRef = archive._arIgnoreArchetypeRef;
+        _arNoDelta = archive._arNoDelta;
+        _arIgnoreOuterRef = archive._arIgnoreOuterRef;
+        _arIgnoreClassGeneratedByRef = archive._arIgnoreClassGeneratedByRef;
+        _arIgnoreClassRef = archive._arIgnoreClassRef;
+        _arAllowLazyLoading = archive._arAllowLazyLoading;
+        _arIsObjectReferenceCollector = archive._arIsObjectReferenceCollector;
+        _arIsModifyingWeakAndStrongReferences = archive._arIsModifyingWeakAndStrongReferences;
+        _arIsCountingMemory = archive._arIsCountingMemory;
+        _arShouldSkipBulkData = archive._arShouldSkipBulkData;
+        _arIsFilterEditorOnly = archive._arIsFilterEditorOnly;
+        _arIsSaveGame = archive._arIsSaveGame;
+        _arIsNetArchive = archive._arIsNetArchive;
+        _arUseCustomPropertyList = archive._arUseCustomPropertyList;
+        _arSerializingDefaults = archive._arSerializingDefaults;
+        _arPortFlags = archive._arPortFlags;
+        _arMaxSerializeSize = archive._arMaxSerializeSize;
+        _arUE4Ver = archive._arUE4Ver;
+        _arLicenseeUE4Ver = archive._arLicenseeUE4Ver;
+        _arEngineVer = archive._arEngineVer;
+        _arEngineNetVer = archive._arEngineNetVer;
+        _arGameNetVer = archive._arGameNetVer;
+    }
+    
     public virtual bool ReadBit()
     {
         throw new NotImplementedException();
@@ -189,6 +234,11 @@ public abstract class FArchive : IDisposable
         byte value;
         Serialize(&value, 1);
         return value;
+    }
+    
+    public virtual unsafe void WriteByte(byte value)
+    {
+        Serialize(&value, 1);
     }
 
     public virtual unsafe byte[] ReadBytes(long amount)
@@ -222,6 +272,11 @@ public abstract class FArchive : IDisposable
         uint value;
         ByteOrderSerialize(&value, sizeof(uint));
         return value;
+    }
+
+    public virtual unsafe void WriteUInt32(uint value)
+    {
+        ByteOrderSerialize(&value, sizeof(uint));
     }
 
     public virtual unsafe int ReadInt32()
@@ -312,6 +367,14 @@ public abstract class FArchive : IDisposable
         throw new NotImplementedException();
     }
 
+    public unsafe void SerializeBits(Span<byte> value, long lengthBits)
+    {
+        fixed (byte* pBuffer = value)
+        {
+            SerializeBits(pBuffer, lengthBits);
+        }
+    }
+
     public unsafe void SerializeBits(byte[] value, long lengthBits)
     {
         fixed (byte* pBuffer = value)
@@ -320,9 +383,6 @@ public abstract class FArchive : IDisposable
         }
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
     /// <param name="value"></param>
     /// <param name="lengthBits"></param>
     public virtual unsafe void SerializeBits(void* value, long lengthBits)
@@ -335,10 +395,21 @@ public abstract class FArchive : IDisposable
         }
     }
 
-    public virtual unsafe void SerializeInt(uint* value, uint max)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void SerializeInt(uint value, uint valueMax)
+    {
+        SerializeInt(&value, valueMax);
+    }
+
+    public virtual unsafe void SerializeInt(uint* value, uint valueMax)
     {
         throw new NotImplementedException();
-        ByteOrderSerialize(&value, sizeof(uint));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void SerializeIntPacked(uint value)
+    {
+        SerializeIntPacked(&value);
     }
 
     /// <summary>
@@ -725,6 +796,11 @@ public abstract class FArchive : IDisposable
     public virtual void SetFilterEditorOnly(bool inFilterEditorOnly)
     {
         _arIsFilterEditorOnly = inFilterEditorOnly;
+    }
+
+    public virtual void Reset()
+    {
+        
     }
 
     public abstract void Dispose();

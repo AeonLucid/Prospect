@@ -1,6 +1,6 @@
 ﻿namespace Prospect.Unreal.Net;
 
-public class UPackageMapClient
+public class UPackageMapClient : UPackageMap
 {
     public void Initialize(UNetConnection connection, FNetGUIDCache guidCache)
     {

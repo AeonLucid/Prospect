@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using Prospect.Unreal.Core;
+using Prospect.Unreal.Exceptions;
+using Prospect.Unreal.Net.Packets.Control;
 
 namespace Prospect.Unreal.Net;
 
@@ -39,8 +41,12 @@ public class UIpConnection : UNetConnection
         RemoteAddr = inRemoteAddr;
         Url.Host = RemoteAddr.Address;
 
+        // Initialize our send bunch
+        InitSendBuffer();
+
+        // This is for a client that needs to log in, setup ClientLoginState and ExpectedClientLoginMsgType to reflect that
         SetClientLoginState(EClientLoginState.LoggingIn);
-        SetExpectedClientLoginMsgType(0); // TODO: NMT_HELLO
+        SetExpectedClientLoginMsgType(NMT.Hello); // TODO: NMT_HELLO
     }
 
     public override void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
@@ -50,7 +56,38 @@ public class UIpConnection : UNetConnection
 
     public override void LowLevelSend(byte[] data, int countBits, FOutPacketTraits traits)
     {
-        throw new NotImplementedException();
+        // TODO: Improve according to UE4
+
+        var dataToSend = data;
+        
+        // 243
+        // 244
+        
+        // Process any packet modifiers
+        if (Handler != null && !Handler.GetRawSend())
+        {
+            var processedData = Handler.Outgoing(data, countBits, traits);
+            if (!processedData.Error)
+            {
+                dataToSend = processedData.Data;
+                countBits = processedData.CountBits;
+            }
+            else
+            {
+                countBits = 0;
+            }
+        }
+
+        var countBytes = FMath.DivideAndRoundUp(countBits, 8);
+        if (countBits > 0)
+        {
+            if (Socket == null)
+            {
+                throw new UnrealNetException();
+            }
+            
+            Socket.Send(dataToSend, countBytes, RemoteAddr);
+        }
     }
 
     public override string LowLevelGetRemoteAddress(bool bAppendPort = false)

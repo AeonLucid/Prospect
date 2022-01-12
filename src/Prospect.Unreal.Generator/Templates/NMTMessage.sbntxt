@@ -1,0 +1,36 @@
+﻿using Prospect.Unreal.Core;
+using Prospect.Unreal.Net;
+using Prospect.Unreal.Net.Packets.Bunch;
+
+namespace {{ cnamespace }};
+
+public static class NMT_{{ entry.Name }}
+{
+    public static void Send(UNetConnection conn{{send_params entry.Params}}) 
+    {
+        if (conn.Channels[0] != null && !conn.Channels[0].Closing)
+        {
+            using var bunch = new FControlChannelOutBunch(conn.Channels[0], false);
+            bunch.WriteByte({{ entry.Index }});
+        {{~ for param in entry.Params ~}}
+            {{send_type param for.index}};
+        {{~ end ~}}
+            conn.Channels[0].SendBunch(bunch, true);
+        }
+    }
+
+    public static bool Receive(FInBunch bunch{{read_out_params entry.Params}})
+    {
+    {{~ for param in entry.Params ~}}
+        {{read_out param for.index}};
+    {{~ end ~}}
+        return !bunch.IsError();
+    }
+
+    public static void Discard(FInBunch bunch)
+    {
+    {{~ for param in entry.Params ~}}
+        {{read_type param}};
+    {{~ end ~}}
+    }
+}

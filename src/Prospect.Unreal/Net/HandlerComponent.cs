@@ -5,8 +5,6 @@ namespace Prospect.Unreal.Net;
 
 public abstract class HandlerComponent
 {
-    private bool _bRequiresHandshake;
-    private bool _bRequiresReliability;
     private bool _bActive;
     private bool _bInitialized;
     private string _name;
@@ -14,8 +12,8 @@ public abstract class HandlerComponent
     protected HandlerComponent(PacketHandler handler, string name)
     {
         _name = name;
-        _bRequiresHandshake = false;
-        _bRequiresReliability = false;
+        RequiresHandshake = false;
+        RequiresReliability = false;
         _bActive = false;
         _bInitialized = false;
 
@@ -25,6 +23,14 @@ public abstract class HandlerComponent
     
     protected PacketHandler Handler { get; }
     protected HandlerComponentState State { get; private set; }
+    
+    public bool RequiresHandshake { get; protected set; }
+    public bool RequiresReliability { get; protected set; }
+    
+    /// <summary>
+    ///     Maximum number of Outgoing packet bits supported (automatically calculated to factor in other HandlerComponent reserved bits)
+    /// </summary>
+    public uint MaxOutgoingBits { get; set; }
     
     public virtual bool IsActive()
     {
@@ -41,21 +47,11 @@ public abstract class HandlerComponent
         return _bInitialized;
     }
 
-    public bool RequiresHandshake()
-    {
-        return _bRequiresHandshake;
-    }
-
-    public bool RequiresReliability()
-    {
-        return _bRequiresReliability;
-    }
-
     public virtual void Incoming(FBitReader packet)
     {
     }
 
-    public virtual void Outgoing(FBitWriter packet, FOutPacketTraits traits)
+    public virtual void Outgoing(ref FBitWriter packet, FOutPacketTraits traits)
     {
     }
 
@@ -104,5 +100,6 @@ public abstract class HandlerComponent
     protected void Initialized()
     {
         _bInitialized = true;
+        Handler.HandlerComponentInitialized(this);
     }
 }
