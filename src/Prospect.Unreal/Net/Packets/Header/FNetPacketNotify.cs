@@ -4,7 +4,19 @@ using Serilog;
 
 namespace Prospect.Unreal.Net.Packets.Header;
 
-public delegate void HandlePacketNotification(SequenceNumber ackedSequence, bool delivered);
+public delegate void HandlePacketNotification(PacketNotifyUpdateContext context, SequenceNumber ackedSequence, bool delivered);
+
+public readonly ref struct PacketNotifyUpdateContext
+{
+    public readonly HandlePacketNotification Func;
+    public readonly List<FChannelCloseInfo> ChannelToClose;
+
+    public PacketNotifyUpdateContext(HandlePacketNotification func, List<FChannelCloseInfo> channelToClose)
+    {
+        Func = func;
+        ChannelToClose = channelToClose;
+    }
+}
 
 public class FNetPacketNotify
 {
@@ -133,14 +145,14 @@ public class FNetPacketNotify
         return SequenceNumber.Diff(notificationData.Seq, _inSeq);
     }
 
-    public int Update(FNotificationHeader notificationData, HandlePacketNotification func)
+    public int Update(FNotificationHeader notificationData, PacketNotifyUpdateContext context)
     {
         var inSeqDelta = GetSequenceDelta(notificationData);
         if (inSeqDelta > 0)
         {
             Logger.Verbose("Update - Seq {Seq}, InSeq {InSeq}", notificationData.Seq.Value, _inSeq.Value);
 
-            ProcessReceivedAcks(notificationData, func);
+            ProcessReceivedAcks(notificationData, context);
 
             _inSeq = notificationData.Seq;
             
@@ -150,7 +162,7 @@ public class FNetPacketNotify
         return 0;
     }
 
-    private void ProcessReceivedAcks(FNotificationHeader notificationData, HandlePacketNotification func)
+    private void ProcessReceivedAcks(FNotificationHeader notificationData, PacketNotifyUpdateContext context)
     {
         if (notificationData.AckedSeq.Greater(_outAckSeq))
         {
@@ -173,7 +185,7 @@ public class FNetPacketNotify
             while (ackCount > SequenceHistory.Size)
             {
                 --ackCount;
-                func(currentAck, false);
+                context.Func(context, currentAck, false);
                 currentAck = currentAck.IncrementAndGet();
             }
             
@@ -181,7 +193,7 @@ public class FNetPacketNotify
             while (ackCount > 0)
             {
                 --ackCount;
-                func(currentAck, notificationData.History.IsDelivered(ackCount));
+                context.Func(context, currentAck, notificationData.History.IsDelivered(ackCount));
                 currentAck = currentAck.IncrementAndGet();
             }
 
@@ -231,7 +243,7 @@ public class FNetPacketNotify
     {
         while (ackedSeq.Greater(_inAckSeq))
         {
-            _inAckSeq.IncrementAndGet();
+            _inAckSeq = _inAckSeq.IncrementAndGet();
 
             var bReportAcked = _inAckSeq.Equals(ackedSeq) ? isAck : false;
             
@@ -246,7 +258,8 @@ public class FNetPacketNotify
         // Add entry to the ack-record so that we can update the InAckSeqAck when we received the ack for this OutSeq.
         _ackRecord.Enqueue(new FSentAckData(_outSeq, _writtenInAckSeq));
         _writtenHistoryWordCount = 0;
+        _outSeq = _outSeq.IncrementAndGet();
 
-        return _outSeq.IncrementAndGet();
+        return _outSeq;
     }
 }

@@ -34,8 +34,11 @@ public abstract class UNetDriver : IAsyncDisposable
         }
     }
 
-    // From Engine ini
+    // TODO: From Engine ini
     public float KeepAliveTime { get; } = 0.2f;
+
+    // TODO: From Engine ini
+    public int MaxClientRate { get; } = 100000;
     
     /// <summary>
     ///     World this net driver is associated with

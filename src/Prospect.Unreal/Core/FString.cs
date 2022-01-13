@@ -41,13 +41,23 @@ public static class FString
         }
         else
         {
-            var num = value.Length + 1;
-            var valueBytes = num > 128 ? new byte[num] : stackalloc byte[num];
+            var num = value.Length;
+            if (num != 0)
+            {
+                // Add null terminator.
+                num += 1;
+                
+                var valueBytes = num > 128 ? new byte[num] : stackalloc byte[num];
             
-            Encoding.ASCII.GetBytes(value, valueBytes);
+                Encoding.ASCII.GetBytes(value, valueBytes);
             
-            archive.WriteInt32(num);
-            archive.Serialize(valueBytes, num);
+                archive.WriteInt32(num);
+                archive.Serialize(valueBytes, num);
+            }
+            else
+            {
+                archive.WriteInt32(0);
+            }
         }
     }
     

@@ -80,4 +80,14 @@ public class UPackageMap
     {
         throw new NotImplementedException();
     }
+
+    public void ReceivedAck(int ackPacketId)
+    {
+        // TODO: Implement
+    }
+
+    public void ReceivedNak(int nakPacketId)
+    {
+        // TODO: Implement
+    }
 }

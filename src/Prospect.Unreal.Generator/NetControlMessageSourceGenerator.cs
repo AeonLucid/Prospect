@@ -103,6 +103,7 @@ namespace Prospect.Unreal.Generator
             { "int", new ParamDef("bunch.ReadInt32()", "bunch.WriteInt32({0})") },
             { "uint", new ParamDef("bunch.ReadUInt32()", "bunch.WriteUInt32({0})") },
             { "FString", new ParamDef("bunch.ReadString()", "bunch.WriteString({0})") },
+            { "FUniqueNetIdRepl", new ParamDef("FUniqueNetIdRepl.Read(bunch)", "FUniqueNetIdRepl.Write(bunch, {0})") }
         };
 
         public static string SendParams(List<string> args)

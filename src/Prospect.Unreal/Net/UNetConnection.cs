@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
@@ -38,7 +37,19 @@ public abstract class UNetConnection : UPlayer
     public const EEngineNetworkVersionHistory DefaultEngineNetworkProtocolVersion = EEngineNetworkVersionHistory.HISTORY_ENGINENETVERSION_LATEST;
     public const uint DefaultGameNetworkProtocolVersion = 0;
 
+    /// <summary>
+    /// 	The channels that need ticking. This will be a subset of OpenChannels, only including
+	///     channels that need to process either dormancy or queued bunches. Should be a significant
+	///     optimization over ticking and calling virtual functions on the potentially hundreds of
+	///     OpenChannels every frame.
+    /// </summary>
     private HashSet<UChannel> _channelsToTick;
+    
+    /// <summary>
+    ///     Online platform ID of remote player on this connection. Only valid on client connections (server side).
+    /// </summary>
+    private FName _playerOnlinePlatformName;
+    
     private List<FBitReader>? _packetOrderCache;
     private int _packetOrderCacheStartIdx;
     private int _packetOrderCacheCount;
@@ -48,6 +59,7 @@ public abstract class UNetConnection : UPlayer
     private bool _bReplay;
 
     private double _statUpdateTime;
+    
     private double _lastReceiveTime;
     private double _lastReceiveRealTime;
     private double _lastGoodPacketRealtime;
@@ -73,16 +85,21 @@ public abstract class UNetConnection : UPlayer
     private bool _bFlushedNetThisFrame;
     private bool _bAutoFlush;
 
+    private readonly HandlePacketNotification _packetNotifyUpdateDelegate;
+
     public UNetConnection()
     {
         _channelsToTick = new HashSet<UChannel>();
+        _playerOnlinePlatformName = UnrealNames.FNames[UnrealNameKey.None];
         _packetOrderCache = null;
         _packetOrderCacheStartIdx = 0;
         _packetOrderCacheCount = 0;
         _bFlushingPacketOrderCache = false;
         _bInternalAck = false;
         _bReplay = false;
-        
+        _packetNotifyUpdateDelegate = PacketNotifyUpdate;
+
+        Children = new List<UChildConnection>();
         Driver = null;
         PackageMap = null;
         OpenChannels = new List<UChannel>();
@@ -116,6 +133,11 @@ public abstract class UNetConnection : UPlayer
             new SequenceNumber((ushort)OutPacketId));
     }
     
+    /// <summary>
+    ///     Child connections for secondary viewports
+    /// </summary>
+    public List<UChildConnection> Children { get; private set; }
+
     /// <summary>
     ///     Owning net driver
     /// </summary>
@@ -199,6 +221,11 @@ public abstract class UNetConnection : UPlayer
     public StatelessConnectHandlerComponent? StatelessConnectComponent { get; private set; }
     
     /// <summary>
+    ///     Net id of remote player on this connection. Only valid on client connections (server side).
+    /// </summary>
+    public FUniqueNetIdRepl? PlayerId { get; set; }
+    
+    /// <summary>
     ///     Bytes overhead per packet sent.
     /// </summary>
     public int PacketOverhead { get; private set; }
@@ -207,6 +234,21 @@ public abstract class UNetConnection : UPlayer
     ///     Server-generated challenge.
     /// </summary>
     public string Challenge { get; private set; }
+    
+    /// <summary>
+    ///     Client-generated response.
+    /// </summary>
+    public string ClientResponse { get; set; }
+    
+    /// <summary>
+    ///     The last time an ack was received
+    /// </summary>
+    public float LastRecvAckTime { get; set; }
+    
+    /// <summary>
+    ///     The last time an ack was received
+    /// </summary>
+    public double LastRecvAckTimestamp { get; set; }
     
     /// <summary>
     ///     Queued up bits waiting to send
@@ -321,8 +363,16 @@ public abstract class UNetConnection : UPlayer
         PackageMap = packageMapClient;
     }
 
-    public abstract void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
-    public abstract void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0);
+    public virtual void InitRemoteConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, IPEndPoint inRemoteAddr, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
+    {
+        throw new NotImplementedException();
+    }
+    
+    public virtual void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
+    {
+        throw new NotImplementedException();
+    }
+    
     public abstract void LowLevelSend(byte[] data, int countBits, FOutPacketTraits traits);
     public abstract string LowLevelGetRemoteAddress(bool bAppendPort = false);
     public abstract string LowLevelDescribe();
@@ -463,44 +513,25 @@ public abstract class UNetConnection : UPlayer
                 }
                 
                 // TODO: Increment things
+                InPacketId += packetSequenceDelta;
             }
             else
             {
                 // TODO: Increment things
                 // TODO: PacketOrderCache
+                Logger.Warning("Received out of order packet");
                 return;
             }
 
             // Update incoming sequence data and deliver packet notifications
             // Packet is only accepted if both the incoming sequence number and incoming ack data are valid
-            PacketNotify.Update(header, (ackedSequence, delivered) =>
-            {
-                // TODO: Increment things
-
-                if (!new SequenceNumber((ushort)LastNotifiedPacketId).Equals(ackedSequence))
-                {
-                    // TODO: Close connection.
-                    Logger.Fatal("LastNotifiedPacketId != AckedSequence");
-                    return;
-                }
-
-                if (delivered)
-                {
-                    // ReceivedAck(LastNotifiedPacketId, ChannelsToClose)
-                    Logger.Verbose("TODO: ReceivedAck");
-                }
-                else
-                {
-                    // ReceivedNak(LastNotifiedPacketId)
-                    Logger.Verbose("TODO: ReceivedNak");
-                }
-            });
+            PacketNotify.Update(header, new PacketNotifyUpdateContext(_packetNotifyUpdateDelegate, channelsToClose));
             
             // Extra information associated with the header (read only after acks have been processed)
             if (packetSequenceDelta > 0 && !ReadPacketInfo(reader, bHasPacketInfoPayload))
             {
-                // TODO: Close connection.
                 Logger.Fatal("Failed to read PacketHeader");
+                Close();
                 return;
             }
         }
@@ -698,16 +729,16 @@ public abstract class UNetConnection : UPlayer
 
                 if (bunch.bReliable)
                 {
-                    Logger.Verbose("  Reliable Bunch, Channel {Ch} Sequence {Seq}: Size {A.0}+{B.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
+                    Logger.Verbose("  Reliable Bunch, Channel {Ch} Sequence {Seq}: Size {A:###.0}+{B:###.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
                 }
                 else
                 {
-                    Logger.Verbose("  Unreliable Bunch, Channel {Ch}: Size {A.0}+{B.0}", bunch.ChIndex, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
+                    Logger.Verbose("  Unreliable Bunch, Channel {Ch}: Size {A:###.0}+{B:###.0}", bunch.ChIndex, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
                 }
 
                 if (bunch.bOpen)
                 {
-                    Logger.Verbose("  bOpen Bunch, Channel {Ch} Sequence {Seq}: Size {A.0}+{B.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
+                    Logger.Verbose("  bOpen Bunch, Channel {Ch} Sequence {Seq}: Size {A:###.0}+{B:###.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
                 }
 
                 if (Channels[bunch.ChIndex] == null && (bunch.ChIndex != 0 || bunch.ChName != UnrealNames.FNames[UnrealNameKey.Control]))
@@ -900,6 +931,59 @@ public abstract class UNetConnection : UPlayer
                 }
             }
         }
+    }
+
+    private void PacketNotifyUpdate(PacketNotifyUpdateContext context, SequenceNumber ackedSequence, bool delivered)
+    {
+        ++LastNotifiedPacketId;
+        // TODO: Increment things
+
+        if (!new SequenceNumber((ushort)LastNotifiedPacketId).Equals(ackedSequence))
+        {
+            Close();
+            Logger.Fatal("LastNotifiedPacketId != AckedSequence");
+            return;
+        }
+
+        if (delivered)
+        {
+            ReceivedAck(LastNotifiedPacketId, context.ChannelToClose);
+            Logger.Verbose("TODO: ReceivedAck");
+        }
+        else
+        {
+            ReceivedNak(LastNotifiedPacketId);
+            Logger.Verbose("TODO: ReceivedNak");
+        }
+    }
+
+    private void ReceivedAck(int ackPacketId, List<FChannelCloseInfo> outChannelsToClose)
+    {
+        Logger.Verbose("Received ack {AckPacketId}", ackPacketId);
+        
+        // Advance OutAckPacketId
+        OutAckPacketId = ackPacketId;
+        
+        // Process the bunch.
+        LastRecvAckTime = (float)Driver!.GetElapsedTime();
+        LastRecvAckTimestamp = Driver.GetElapsedTime();
+
+        if (PackageMap != null)
+        {
+            PackageMap.ReceivedAck(ackPacketId);
+        }
+        
+        // TODO: Invoke AckChannelFunc on all channels written for this PacketId
+    }
+
+    private void ReceivedNak(int nakPacketId)
+    {
+        Logger.Verbose("Received nak {NakPacketId}", nakPacketId);
+        
+        // Update pending NetGUIDs
+        PackageMap!.ReceivedNak(nakPacketId);
+        
+        // TODO: Invoke NakChannelFunc on all channels written for this PacketId
     }
 
     private bool ReadPacketInfo(FBitReader reader, bool bHasPacketInfoPayload)
@@ -1165,8 +1249,11 @@ public abstract class UNetConnection : UPlayer
         {
             // TOOD: Increment things
         }
-        
-        FlushNet();
+
+        if (_bAutoFlush)
+        {
+            FlushNet();
+        }
 
         return bunch.PacketId;
     }
@@ -1420,7 +1507,12 @@ public abstract class UNetConnection : UPlayer
         NumPaddingBits = 0;
     }
 
-    private void FlushNet()
+    public void SetPlayerOnlinePlatformName(FName inPlayerOnlinePlatformName)
+    {
+        _playerOnlinePlatformName = inPlayerOnlinePlatformName;
+    }
+
+    public void FlushNet(bool bIgnoreSimulation = false)
     {
         if (Driver == null)
         {
@@ -1554,7 +1646,7 @@ public abstract class UNetConnection : UPlayer
         _channelsToTick.Remove(channel);
     }
 
-    private protected void SetClientLoginState(EClientLoginState newState)
+    internal void SetClientLoginState(EClientLoginState newState)
     {
         if (ClientLoginState == newState)
         {

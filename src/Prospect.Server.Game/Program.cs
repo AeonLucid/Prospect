@@ -1,4 +1,5 @@
 ﻿using Prospect.Unreal.Core;
+using Prospect.Unreal.Runtime;
 using Serilog;
 
 namespace Prospect.Server.Game;
@@ -33,6 +34,8 @@ internal static class Program
         
         await using (var world = new ProspectWorld(worldUrl))
         {
+            world.SetGameInstance(new UGameInstance());
+            world.SetGameMode(worldUrl);
             world.Listen();
         
             while (await Tick.WaitForNextTickAsync())
