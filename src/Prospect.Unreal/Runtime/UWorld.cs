@@ -1,4 +1,4 @@
-﻿using Prospect.Unreal.Core;
+using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net;
@@ -268,7 +268,7 @@ public abstract class UWorld : FNetworkNotify, IAsyncDisposable
                         connection.SetPlayerOnlinePlatformName(new FName(onlinePlatformName));
                         
                         // ask the game code if this player can join
-                        string errorMsg = null;
+                        string? errorMsg = null;
                         
                         var gameMode = GetAuthGameMode();
                         if (gameMode != null)

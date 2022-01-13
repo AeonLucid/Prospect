@@ -7,7 +7,7 @@ namespace Prospect.Unreal.Net;
 public class FUniqueNetIdRepl
 {
     private static readonly ILogger Logger = Log.ForContext<FUniqueNetIdRepl>();
-    private const int TypeHash_Other = 31;
+    private const int TypeHashOther = 31;
     
     public FUniqueNetId? UniqueNetId { get; private set; }
 
@@ -18,8 +18,7 @@ public class FUniqueNetIdRepl
 
     public string ToDebugString()
     {
-        // TODO: Add type
-        return IsValid() ? $"{UniqueNetId!.Contents}" : "INVALID";
+        return IsValid() ? $"${UniqueNetId!.Type}:{UniqueNetId!.Contents}" : "INVALID";
     }
     
     public static void Write(FArchive ar, FUniqueNetIdRepl value)
@@ -68,7 +67,7 @@ public class FUniqueNetIdRepl
 
                         var bValidTypeHash = typeHash != 0;
                         
-                        if (typeHash == TypeHash_Other)
+                        if (typeHash == TypeHashOther)
                         {
                             var typeString = ar.ReadString();
                             var type = new FName(typeString);
@@ -102,13 +101,16 @@ public class FUniqueNetIdRepl
                         // TypeHash = UOnlineEngineInterface::Get()->GetReplicationHashForSubsystem(UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName());
                     }
 
+                    FName type;
+                    
                     var bValidTypeHash = typeHash != 0;
-                    if (typeHash == TypeHash_Other)
+                    if (typeHash == TypeHashOther)
                     {
-                        
+                        type = new FName(ar.ReadString());
                     }
                     else
                     {
+                        type = UnrealNames.FNames[UnrealNameKey.None];
                         // TODO: Type = UOnlineEngineInterface::Get()->GetSubsystemFromReplicationHash(TypeHash);
                     }
 
@@ -118,7 +120,7 @@ public class FUniqueNetIdRepl
                         if (!ar.IsError())
                         {
                             // TODO: Check if type != none
-                            UniqueNetId = new FUniqueNetId(contents);
+                            UniqueNetId = new FUniqueNetId(type, contents);
                             bOutSuccess = true;
                         }
                     }

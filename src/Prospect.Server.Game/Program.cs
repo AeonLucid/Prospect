@@ -27,6 +27,10 @@ internal static class Program
         
         Logger.Information("Starting Prospect.Server.Game");
 
+        // Prospect:
+        //  Map:        /Game/Maps/MP/Station/Station_P
+        //  GameMode:   /Script/Prospect/YGameMode_Station
+        
         var worldUrl = new FUrl
         {
             Map = "/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap"
