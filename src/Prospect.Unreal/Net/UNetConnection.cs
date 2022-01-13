@@ -8,7 +8,7 @@ using Prospect.Unreal.Net.Packets.Bunch;
 using Prospect.Unreal.Net.Packets.Control;
 using Prospect.Unreal.Net.Packets.Header;
 using Prospect.Unreal.Net.Packets.Header.Sequence;
-using Prospect.Unreal.Net.Player;
+using Prospect.Unreal.Runtime;
 using Prospect.Unreal.Serialization;
 using Serilog;
 
@@ -239,6 +239,11 @@ public abstract class UNetConnection : UPlayer
     ///     Client-generated response.
     /// </summary>
     public string ClientResponse { get; set; }
+    
+    /// <summary>
+    ///     URL requested by client
+    /// </summary>
+    public string RequestURL { get; set; }
     
     /// <summary>
     ///     The last time an ack was received

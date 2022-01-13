@@ -1,4 +1,6 @@
-﻿namespace Prospect.Unreal.Net.Player;
+﻿using Prospect.Unreal.Net.Actors;
+
+namespace Prospect.Unreal.Runtime;
 
 public class UPlayer
 {

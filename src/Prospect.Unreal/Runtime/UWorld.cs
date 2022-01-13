@@ -1,3 +1,4 @@
+using System.Text;
 using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
@@ -10,7 +11,7 @@ using Serilog;
 
 namespace Prospect.Unreal.Runtime;
 
-public abstract class UWorld : FNetworkNotify, IAsyncDisposable
+public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
 {
     private static readonly ILogger Logger = Log.ForContext<UWorld>();
 
@@ -203,27 +204,28 @@ public abstract class UWorld : FNetworkNotify, IAsyncDisposable
                 case NMT.Login:
                 {
                     // Admit or deny the player here.
-                    if (NMT_Login.Receive(bunch, out var clientResponse, out var requestUrl, out var uniqueIdRepl, out var onlinePlatformName))
+                    if (NMT_Login.Receive(bunch, out var clientResponse, out var tmpRequestUrl, out var uniqueIdRepl, out var onlinePlatformName))
                     {
                         connection.ClientResponse = clientResponse;
+                        connection.RequestURL = tmpRequestUrl;
                         
                         // Only the options/portal for the URL should be used during join
-                        var newRequestUrl = requestUrl;
+                        var newRequestUrl = connection.RequestURL;
                         
-                        var oneIndex = requestUrl.IndexOf('?');
-                        var twoIndex = requestUrl.IndexOf('#');
+                        var oneIndex = newRequestUrl.IndexOf('?');
+                        var twoIndex = newRequestUrl.IndexOf('#');
 
                         if (oneIndex != -1 && twoIndex != -1)
                         {
-                            newRequestUrl = requestUrl.Substring(Math.Min(oneIndex, twoIndex));
+                            newRequestUrl = newRequestUrl.Substring(Math.Min(oneIndex, twoIndex));
                         } 
                         else if (oneIndex != -1)
                         {
-                            newRequestUrl = requestUrl.Substring(oneIndex);
+                            newRequestUrl = newRequestUrl.Substring(oneIndex);
                         } 
                         else if (twoIndex != -1)
                         {
-                            newRequestUrl = requestUrl.Substring(twoIndex);
+                            newRequestUrl = newRequestUrl.Substring(twoIndex);
                         }
                         else
                         {
@@ -244,8 +246,8 @@ public abstract class UWorld : FNetworkNotify, IAsyncDisposable
 
                         if (!inUrl.Valid)
                         {
-                            requestUrl = newRequestUrl;
-                            Logger.Error("NMT_Login: Invalid URL {Url}", requestUrl);
+                            connection.RequestURL = newRequestUrl;
+                            Logger.Error("NMT_Login: Invalid URL {Url}", connection.RequestURL);
                             bunch.SetError();
                             break;
                         }
@@ -256,10 +258,10 @@ public abstract class UWorld : FNetworkNotify, IAsyncDisposable
                         inUrl.Options.Remove("SplitscreenCount");
                         inUrl.Options.Add($"SplitscreenCount={splitscreenCount}");
 
-                        requestUrl = inUrl.ToString();
+                        connection.RequestURL = inUrl.ToString();
                         
                         // skip to the first option in the URL
-                        var tmp = requestUrl.Substring(requestUrl.IndexOf('?'));
+                        var tmp = connection.RequestURL.Substring(connection.RequestURL.IndexOf('?'));
 
                         // keep track of net id for player associated with remote connection
                         connection.PlayerId = uniqueIdRepl;
@@ -292,6 +294,21 @@ public abstract class UWorld : FNetworkNotify, IAsyncDisposable
                         connection.ClientResponse = string.Empty;
                     }
 
+                    break;
+                }
+
+                case NMT.Join:
+                {
+                    if (connection.PlayerController == null)
+                    {
+                        // Spawn the player-actor for this network player.
+                        Logger.Debug("Join request: {Request}", connection.RequestURL);
+
+                        // TODO: Proper constructor
+                        var inURL = new FUrl();
+
+                        connection.PlayerController = SpawnPlayActor(connection, ENetRole.ROLE_AutonomousProxy, inURL, connection.PlayerId, out var errorMsg);
+                    }
                     break;
                 }
 
