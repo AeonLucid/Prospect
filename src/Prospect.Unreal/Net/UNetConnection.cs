@@ -953,12 +953,10 @@ public abstract class UNetConnection : UPlayer
         if (delivered)
         {
             ReceivedAck(LastNotifiedPacketId, context.ChannelToClose);
-            Logger.Verbose("TODO: ReceivedAck");
         }
         else
         {
             ReceivedNak(LastNotifiedPacketId);
-            Logger.Verbose("TODO: ReceivedNak");
         }
     }
 
