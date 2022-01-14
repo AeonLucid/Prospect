@@ -21,9 +21,9 @@ public abstract class UNetDriver : IAsyncDisposable
         ChannelDefinitionMap = new Dictionary<FName, FChannelDefinition>();
         ChannelDefinitions = new List<FChannelDefinition>
         {
-            new FChannelDefinition(UnrealNames.FNames[UnrealNameKey.Control], typeof(string), 0, true, false, true, false, true),
-            new FChannelDefinition(UnrealNames.FNames[UnrealNameKey.Voice], typeof(string), 1, true, true, true, true, true),
-            new FChannelDefinition(UnrealNames.FNames[UnrealNameKey.Actor], typeof(string), -1, false, true, false, false, false)
+            new FChannelDefinition(EName.Control, typeof(string), 0, true, false, true, false, true),
+            new FChannelDefinition(EName.Voice, typeof(string), 1, true, true, true, true, true),
+            new FChannelDefinition(EName.Actor, typeof(string), -1, false, true, false, false, false)
         };
         ClientConnections = new List<UNetConnection>();
         MappedClientConnections = new ConcurrentDictionary<IPEndPoint, UNetConnection>();
@@ -179,11 +179,17 @@ public abstract class UNetDriver : IAsyncDisposable
     {
         // TODO: Pool actor channels (?)
 
-        return (UnrealNameKey)chName.Number switch
+        var name = chName.ToEName();
+        if (name == null)
         {
-            UnrealNameKey.Actor => new UActorChannel(),
-            UnrealNameKey.Control => new UControlChannel(),
-            UnrealNameKey.Voice => new UVoiceChannel(),
+            throw new UnrealNetException($"Unsupported channel name specified {chName}");
+        }
+        
+        return name switch
+        {
+            EName.Actor => new UActorChannel(),
+            EName.Control => new UControlChannel(),
+            EName.Voice => new UVoiceChannel(),
             _ => throw new UnrealNetException($"Attempted to create unknown channel {chName}")
         };
     }

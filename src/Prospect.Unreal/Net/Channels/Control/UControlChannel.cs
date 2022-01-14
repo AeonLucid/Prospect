@@ -12,7 +12,7 @@ public class UControlChannel : UChannel
     public UControlChannel()
     {
         ChType = EChannelType.CHTYPE_Control;
-        ChName = UnrealNames.FNames[UnrealNameKey.Control];
+        ChName = EName.Control;
     }
 
     protected override void ReceivedBunch(FInBunch bunch)

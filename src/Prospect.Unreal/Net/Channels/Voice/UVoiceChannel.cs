@@ -8,7 +8,7 @@ public class UVoiceChannel : UChannel
     public UVoiceChannel()
     {
         ChType = EChannelType.CHTYPE_Voice;
-        ChName = UnrealNames.FNames[UnrealNameKey.Control];
+        ChName = EName.Voice;
     }
 
     protected override void ReceivedBunch(FInBunch bunch)

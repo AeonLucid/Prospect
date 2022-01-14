@@ -90,7 +90,7 @@ public abstract class UNetConnection : UPlayer
     public UNetConnection()
     {
         _channelsToTick = new HashSet<UChannel>();
-        _playerOnlinePlatformName = UnrealNames.FNames[UnrealNameKey.None];
+        _playerOnlinePlatformName = EName.None;
         _packetOrderCache = null;
         _packetOrderCacheStartIdx = 0;
         _packetOrderCacheCount = 0;
@@ -649,13 +649,13 @@ public abstract class UNetConnection : UPlayer
                     switch (bunch.ChType)
                     {
                         case EChannelType.CHTYPE_Control:
-                            bunch.ChName = UnrealNames.FNames[UnrealNameKey.Control];
+                            bunch.ChName = EName.Control;
                             break;
                         case EChannelType.CHTYPE_Voice:
-                            bunch.ChName = UnrealNames.FNames[UnrealNameKey.Voice];
+                            bunch.ChName = EName.Voice;
                             break;
                         case EChannelType.CHTYPE_Actor:
-                            bunch.ChName = UnrealNames.FNames[UnrealNameKey.Actor];
+                            bunch.ChName = EName.Actor;
                             break;
                     }
                 }
@@ -667,32 +667,30 @@ public abstract class UNetConnection : UPlayer
                         
                         if (!UPackageMap.StaticSerializeName(reader, ref chName) || reader.IsError())
                         {
-                            // TODO: Close connection
+                            Close();
                             Logger.Fatal("Channel name serialization failed");
                             return;
                         }
                             
-                        bunch.ChName = chName;
-                        
-                        switch ((UnrealNameKey) bunch.ChName.Number)
+                        bunch.ChName = chName!.Value;
+
+                        if (bunch.ChName == EName.Control)
                         {
-                            case UnrealNameKey.Control:
-                                bunch.ChType = EChannelType.CHTYPE_Control;
-                                break;
-                                
-                            case UnrealNameKey.Voice:
-                                bunch.ChType = EChannelType.CHTYPE_Voice;
-                                break;
-                                
-                            case UnrealNameKey.Actor:
-                                bunch.ChType = EChannelType.CHTYPE_Actor;
-                                break;
+                            bunch.ChType = EChannelType.CHTYPE_Control;
+                        } 
+                        else if (bunch.ChName == EName.Voice)
+                        {
+                            bunch.ChType = EChannelType.CHTYPE_Voice;
+                        }
+                        else if (bunch.ChName == EName.Actor)
+                        {
+                            bunch.ChType = EChannelType.CHTYPE_Actor;
                         }
                     }
                     else
                     {
                         bunch.ChType = EChannelType.CHTYPE_None;
-                        bunch.ChName = UnrealNames.FNames[UnrealNameKey.None];
+                        bunch.ChName = EName.None;
                     }
                 }
                     
@@ -700,12 +698,11 @@ public abstract class UNetConnection : UPlayer
 
                 // If there's an existing channel and the bunch specified it's channel type, make sure they match.
                 if (channel != null &&
-                    (bunch.ChName.Number != (int)UnrealNameKey.None) &&
-                    (bunch.ChName.Number != channel.ChName.Number))
+                    (bunch.ChName != EName.None) &&
+                    (bunch.ChName != channel.ChName))
                 {
-                    Logger.Error("Existing channel at index {ChIndex} with type \"{ChName}\" differs from the incoming bunch's expected channel type, \"{BunchChName}\"", 
-                        bunch.ChIndex, channel.ChName.Str, bunch.ChName.Str);
-                    // TODO: Close();
+                    Logger.Error("Existing channel at index {ChIndex} with type \"{ChName}\" differs from the incoming bunch's expected channel type, \"{BunchChName}\"", bunch.ChIndex, channel.ChName, bunch.ChName);
+                    Close();
                     return;
                 }
 
@@ -714,7 +711,7 @@ public abstract class UNetConnection : UPlayer
                 if (reader.IsError())
                 {
                     Logger.Error("Bunch header overflow");
-                    // TODO: Close();
+                    Close();
                     return;
                 }
                 
@@ -746,27 +743,27 @@ public abstract class UNetConnection : UPlayer
                     Logger.Verbose("  bOpen Bunch, Channel {Ch} Sequence {Seq}: Size {A:###.0}+{B:###.0}", bunch.ChIndex, bunch.ChSequence, (headerPos - incomingStartPos)/8.0f, (reader.GetPosBits()-headerPos)/8.0f);
                 }
 
-                if (Channels[bunch.ChIndex] == null && (bunch.ChIndex != 0 || bunch.ChName != UnrealNames.FNames[UnrealNameKey.Control]))
+                if (Channels[bunch.ChIndex] == null && (bunch.ChIndex != 0 || bunch.ChName != EName.Control))
                 {
                     if (Channels[0] == null)
                     {
                         Logger.Fatal("  Received non-control bunch before control channel was created. ChIndex: {Ch}, ChName: {Name}", bunch.ChIndex, bunch.ChName);
-                        // TODO: Close();
+                        Close();
                         return;
                     } 
                     else if (PlayerController == null && Driver.ClientConnections.Contains(this))
                     {
                         Logger.Fatal("  Received non-control bunch before player controller was assigned. ChIndex: {Ch}, ChName: {Name}", bunch.ChIndex, bunch.ChName);
-                        // TODO: Close();
+                        Close();
                         return;
                     }
                 }
 
                 // ignore control channel close if it hasn't been opened yet
-                if (bunch.ChIndex == 0 && Channels[0] == null && bunch.bClose && bunch.ChName == UnrealNames.FNames[UnrealNameKey.Control])
+                if (bunch.ChIndex == 0 && Channels[0] == null && bunch.bClose && bunch.ChName == EName.Control)
                 {
                     Logger.Fatal("Received control channel close before open");
-                    // Close();
+                    Close();
                     return;
                 }
 
@@ -827,7 +824,7 @@ public abstract class UNetConnection : UPlayer
                     {
                         // Unknown type.
                         Logger.Fatal("Connection unknown channel type ({Name})", bunch.ChName);
-                        // TODO: Close()
+                        Close();
                         return;
                     }
 
@@ -883,7 +880,7 @@ public abstract class UNetConnection : UPlayer
                 if (Driver.IsServer() && (bunch.IsCriticalError() || bunch.IsError()))
                 {
                     Logger.Error("Received corrupted packet data from client {RemoteAddress}.  Disconnecting", LowLevelGetRemoteAddress());
-                    // TODO: Close()
+                    Close();
                     return;
                 }
             }
@@ -1218,7 +1215,7 @@ public abstract class UNetConnection : UPlayer
 
         if (bIsOpenOrReliable)
         {
-            var name = bunch.ChName;
+            var name = (FName?) bunch.ChName;
             UPackageMap.StaticSerializeName(sendBunchHeader, ref name);
         }
         

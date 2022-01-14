@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
+using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net.Packets.Bunch;
 using Prospect.Unreal.Serialization;
 
@@ -8,7 +9,7 @@ namespace Prospect.Unreal.Net;
 
 public class UPackageMap
 {
-    public static unsafe bool StaticSerializeName(FArchive ar, [MaybeNullWhen(false)] ref FName name)
+    public static unsafe bool StaticSerializeName(FArchive ar, ref FName? name)
     {
         if (ar.IsLoading())
         {
@@ -34,7 +35,7 @@ public class UPackageMap
                 if (nameIndex < UnrealNames.MaxHardcodedNameIndex)
                 {
                     // hardcoded names never have a Number
-                    name = UnrealNames.FNames[(UnrealNameKey) nameIndex];
+                    name = new FName((EName) nameIndex);
                 }
                 else
                 {
@@ -51,17 +52,23 @@ public class UPackageMap
         }
         else
         {
-            var bHardcoded = (byte)(ShouldReplicateAsInteger(name) ? 1 : 0);
+            if (name == null)
+            {
+                throw new UnrealException("Name should not be null when saving");
+            }
+            
+            var inEName = name.Value.ToEName();
+            var bHardcoded = inEName.HasValue && ShouldReplicateAsInteger(inEName.Value) ? 1 : 0;
             ar.SerializeBits(&bHardcoded, 1); // 25
             if (bHardcoded != 0)
             {
-                ar.SerializeIntPacked((uint)name.Number);
+                ar.SerializeIntPacked((uint)inEName!.Value);
             }
             else
             {
                 // send by string
-                var outString = name.Str;
-                var outNumber = name.Number;
+                var outString = name.Value.GetPlainNameString();
+                var outNumber = name.Value.GetNumber();
                 
                 ar.WriteString(outString);
                 ar.WriteInt32(outNumber);
@@ -71,9 +78,9 @@ public class UPackageMap
         return true;
     }
 
-    private static bool ShouldReplicateAsInteger(FName name)
+    private static bool ShouldReplicateAsInteger(EName name)
     {
-        return name.Number <= UnrealNames.MaxNetworkedHardcodedName;
+        return (int)name <= UnrealNames.MaxNetworkedHardcodedName;
     }
 
     public void NotifyBunchCommit(int bunchPacketId, FOutBunch bunch)

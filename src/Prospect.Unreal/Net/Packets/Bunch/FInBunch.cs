@@ -45,7 +45,7 @@ namespace Prospect.Unreal.Net.Packets.Bunch
             Connection = inConnection;
             ChIndex = 0;
             ChType = EChannelType.CHTYPE_None;
-            ChName = UnrealNames.FNames[UnrealNameKey.None];
+            ChName = EName.None;
             ChSequence = 0;
             bOpen = false;
             bClose = false;

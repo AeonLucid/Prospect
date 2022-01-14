@@ -8,7 +8,7 @@ public class UActorChannel : UChannel
     public UActorChannel()
     {
         ChType = EChannelType.CHTYPE_Actor;
-        ChName = UnrealNames.FNames[UnrealNameKey.Actor];
+        ChName = EName.Actor;
         // bClearRecentActorRefs = true;
         // bHoldQueuedExportBunchesAndGUIDs = false;
         // QueuedCloseReason = EChannelCloseReason::Destroyed;

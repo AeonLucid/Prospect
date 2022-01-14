@@ -1,5 +1,8 @@
 namespace Prospect.Unreal.Core.Names
 {
+    /// <summary>
+    ///     Hardcoded names in Unreal Engine 4.26.2. See "UnrealNames.inl"
+    /// </summary>
     public static class UnrealNames
     {
         public const int MaxNetworkedHardcodedName = 410;
@@ -217,15 +220,11 @@ namespace Prospect.Unreal.Core.Names
             names.Add(702, "Root");
             
             // Save.
-            Names = names;
-            FNames = Names.ToDictionary(x => (UnrealNameKey) x.Key, y => new FName(y.Value, y.Key));
-            MaxHardcodedNameIndex = Names.Last().Key + 1;
+            Names = names.ToDictionary(x => (EName) x.Key, y => y.Value);
+            MaxHardcodedNameIndex = (int)Names.Last().Key + 1;
         }
 
-        public static IReadOnlyDictionary<int, string> Names { get; }
-
-        public static IReadOnlyDictionary<UnrealNameKey, FName> FNames { get; }
-        
+        public static IReadOnlyDictionary<EName, string> Names { get; }
         public static int MaxHardcodedNameIndex { get; }
     }
 }

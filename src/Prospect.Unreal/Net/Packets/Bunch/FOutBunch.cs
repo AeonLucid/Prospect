@@ -8,7 +8,7 @@ public class FOutBunch : FNetBitWriter
 {
     public FOutBunch() : base(0)
     {
-        ChName = UnrealNames.FNames[UnrealNameKey.None];
+        ChName = EName.None;
     }
 
     public FOutBunch(UChannel inChannel, bool bInClose) : base(
@@ -53,7 +53,7 @@ public class FOutBunch : FNetBitWriter
         Time = 0;
         ChIndex = 0;
         ChType = EChannelType.CHTYPE_None;
-        ChName = UnrealNames.FNames[UnrealNameKey.None];
+        ChName = EName.None;
         ChSequence = 0;
         PacketId = 0;
         ReceivedAck = false;

@@ -1,6 +1,6 @@
 namespace Prospect.Unreal.Core.Names
 {
-    public enum UnrealNameKey
+    public enum EName
     {
         None = 0,
 

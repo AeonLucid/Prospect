@@ -71,12 +71,7 @@ public class FUniqueNetIdRepl
                         {
                             var typeString = ar.ReadString();
                             var type = new FName(typeString);
-                            // TODO: Add FName into FNamePool
                             throw new NotImplementedException();
-                            if (ar.IsError() || type.Number == (int)UnrealNameKey.None)
-                            {
-                                bValidTypeHash = false;
-                            }
                         }
                         else
                         {
@@ -110,7 +105,7 @@ public class FUniqueNetIdRepl
                     }
                     else
                     {
-                        type = UnrealNames.FNames[UnrealNameKey.None];
+                        type = new FName(EName.None);
                         // TODO: Type = UOnlineEngineInterface::Get()->GetSubsystemFromReplicationHash(TypeHash);
                     }
 
