@@ -43,7 +43,7 @@ public abstract class UNetConnection : UPlayer
 	///     optimization over ticking and calling virtual functions on the potentially hundreds of
 	///     OpenChannels every frame.
     /// </summary>
-    private HashSet<UChannel> _channelsToTick;
+    private List<UChannel> _channelsToTick;
     
     /// <summary>
     ///     Online platform ID of remote player on this connection. Only valid on client connections (server side).
@@ -89,7 +89,7 @@ public abstract class UNetConnection : UPlayer
 
     public UNetConnection()
     {
-        _channelsToTick = new HashSet<UChannel>();
+        _channelsToTick = new List<UChannel>();
         _playerOnlinePlatformName = EName.None;
         _packetOrderCache = null;
         _packetOrderCacheStartIdx = 0;
@@ -381,7 +381,50 @@ public abstract class UNetConnection : UPlayer
     public abstract void LowLevelSend(byte[] data, int countBits, FOutPacketTraits traits);
     public abstract string LowLevelGetRemoteAddress(bool bAppendPort = false);
     public abstract string LowLevelDescribe();
-    public abstract void Tick(float deltaSeconds);
+
+    public virtual void Tick(float deltaSeconds)
+    {
+        if (_channelsToTick.Count > OpenChannels.Count)
+        {
+            Logger.Warning("More ticking channels ({Ticking}) than open channels ({Open}) for net connection!", _channelsToTick.Count, OpenChannels.Count);
+        }
+        
+        for (var i = _channelsToTick.Count - 1; i >= 0; i--)
+        {
+            _channelsToTick[i].Tick();
+
+            if (_channelsToTick[i].CanStopTicking())
+            {
+                _channelsToTick.RemoveAt(i);
+            }
+        }
+        
+        // Flush
+        if (TimeSensitive || (Driver!.GetElapsedTime() - _lastSendTime) > Driver.KeepAliveTime)
+        {
+            var bHandlerHandshakeComplete = Handler == null || Handler.IsFullyInitialized();
+            if (bHandlerHandshakeComplete)
+            {
+                FlushNet();
+            }
+        }
+
+        // Tick Handler
+        if (Handler != null)
+        {
+            Handler.Tick(deltaSeconds);
+            
+            // TODO: Low prio; send queued packets
+        }
+
+        _bFlushedNetThisFrame = false;
+    }
+
+    public virtual void PostTickDispatch()
+    {
+        
+    }
+    
     public abstract void CleanUp();
 
     public virtual void ReceivedRawPacket(FReceivedPacketView packetView)

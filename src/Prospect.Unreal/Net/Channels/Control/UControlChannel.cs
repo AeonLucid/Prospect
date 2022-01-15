@@ -15,6 +15,18 @@ public class UControlChannel : UChannel
         ChName = EName.Control;
     }
 
+    public override void Tick()
+    {
+        base.Tick();
+        
+        // TODO: Resend packets that weren't [Ack]nowledged
+    }
+
+    public override bool CanStopTicking()
+    {
+        return false;
+    }
+
     protected override void ReceivedBunch(FInBunch bunch)
     {
         // if (Connection != null && bNeedsEndianInspection && !CheckEndianess(bunch))

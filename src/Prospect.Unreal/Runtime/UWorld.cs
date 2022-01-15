@@ -33,7 +33,10 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
         if (NetDriver != null)
         {
             NetDriver.TickDispatch(deltaTime);
-            NetDriver.ConnectionlessHandler?.Tick(deltaTime);
+            NetDriver.PostTickDispatch();
+            
+            NetDriver.TickFlush(deltaTime);
+            NetDriver.PostTickFlush();
         }
     }
 

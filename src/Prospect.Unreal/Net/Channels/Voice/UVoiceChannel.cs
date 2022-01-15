@@ -11,6 +11,16 @@ public class UVoiceChannel : UChannel
         ChName = EName.Voice;
     }
 
+    public override void Tick()
+    {
+        // TODO: Tick
+    }
+
+    public override bool CanStopTicking()
+    {
+        return false;
+    }
+
     protected override void ReceivedBunch(FInBunch bunch)
     {
         throw new NotImplementedException();

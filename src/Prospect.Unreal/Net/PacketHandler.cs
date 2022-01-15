@@ -326,6 +326,11 @@ public class PacketHandler
         SetState(HandlerState.Initialized);
     }
 
+    public bool IsFullyInitialized()
+    {
+        return _state == HandlerState.Initialized;
+    }
+
     private void ReplaceIncomingPacket(FBitReader replacementPacket)
     {
         if (replacementPacket.GetPosBits() == 0 || replacementPacket.GetBitsLeft() == 0)

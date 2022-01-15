@@ -96,9 +96,68 @@ public abstract class UNetDriver : IAsyncDisposable
         return true;
     }
     
+    /// <summary>
+    ///     handle time update: read and process packets
+    /// </summary>
     public virtual void TickDispatch(float deltaTime)
     {
         _elapsedTime += deltaTime;
+        
+        // Delete closed connections.
+        for (var i = ClientConnections.Count - 1; i >= 0; i--)
+        {
+            if (ClientConnections[i].State == EConnectionState.USOCK_Closed)
+            {
+                ClientConnections[i].CleanUp();
+            }
+        }
+    }
+
+    /// <summary>
+    ///     PostTickDispatch actions
+    /// </summary>
+    public virtual void PostTickDispatch()
+    {
+        foreach (var connection in ClientConnections)
+        {
+            /* TODO: (When UObject) if (!connection.IsPendingKill()) */
+            {
+                connection.PostTickDispatch();
+            }
+        }
+    }
+
+    /// <summary>
+    ///     ReplicateActors and Flush
+    /// </summary>
+    public virtual void TickFlush(float deltaTime)
+    {
+        if (IsServer() && ClientConnections.Count > 0)
+        {
+            // TODO: (When actors are implemented) ServerReplicateActors
+        }
+
+        foreach (var connection in ClientConnections)
+        {
+            connection.Tick(deltaTime);
+        }
+
+        if (ConnectionlessHandler != null)
+        {
+            ConnectionlessHandler.Tick(deltaTime);
+            
+            // TODO: FlushHandler
+        }
+        
+        // TODO: (When actors are implemented) CleanupStaleDormantReplicators
+    }
+
+    /// <summary>
+    ///     PostTick actions
+    /// </summary>
+    public virtual void PostTickFlush()
+    {
+        // ClearVoicePackets?
     }
 
     public virtual void LowLevelSend(IPEndPoint address, byte[] data, int countBits, FOutPacketTraits traits)

@@ -132,8 +132,6 @@ public class StatelessConnectHandlerComponent : HandlerComponent
 
     public override void Initialize()
     {
-        Logger.Debug("Initializing");
-
         if (Handler.Mode == HandlerMode.Server)
         {
             Initialized();

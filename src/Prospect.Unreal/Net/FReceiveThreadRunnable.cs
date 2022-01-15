@@ -47,6 +47,8 @@ public class FReceiveThreadRunnable : IAsyncDisposable
     
     private async Task ReceiveAsync()
     {
+        Logger.Information("Started listening on {ServerIp}", _driver.ServerIp);
+        
         try
         {
             while (!_cancellation.IsCancellationRequested)
@@ -76,7 +78,7 @@ public class FReceiveThreadRunnable : IAsyncDisposable
             }
         }
         
-        Logger.Debug("Stopped FReceiveThreadRunnable");
+        Logger.Information("Stopped listening");
     }
 
     public async ValueTask DisposeAsync()

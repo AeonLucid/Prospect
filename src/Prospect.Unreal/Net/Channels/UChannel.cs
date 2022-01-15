@@ -144,6 +144,16 @@ public abstract class UChannel
         SentClosingBunch = false;
     }
 
+    public virtual void Tick()
+    {
+        // TODO: Dormancy
+    }
+
+    public virtual bool CanStopTicking()
+    {
+        return !bPendingDormancy;
+    }
+
     public void ReceivedRawBunch(FInBunch bunch, out bool bOutSkipAck)
     {
         bOutSkipAck = false;
@@ -151,12 +161,12 @@ public abstract class UChannel
         // Immediately consume the NetGUID portion of this bunch, regardless if it is partial or reliable.
         // NOTE - For replays, we do this even earlier, to try and load this as soon as possible, in case there is an issue creating the channel
         // If a replay fails to create a channel, we want to salvage as much as possible
-        if (bunch.bHasPackageMapExports && !Connection.IsInternalAck())
+        if (bunch.bHasPackageMapExports && !Connection!.IsInternalAck())
         {
             throw new NotImplementedException();
         }
 
-        if (Connection.IsInternalAck() && Broken)
+        if (Connection!.IsInternalAck() && Broken)
         {
             return;
         }

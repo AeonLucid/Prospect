@@ -60,9 +60,6 @@ public class UIpConnection : UNetConnection
 
         var dataToSend = data;
         
-        // 243
-        // 244
-        
         // Process any packet modifiers
         if (Handler != null && !Handler.GetRawSend())
         {
@@ -102,11 +99,6 @@ public class UIpConnection : UNetConnection
     }
 
     public override string LowLevelDescribe()
-    {
-        throw new NotImplementedException();
-    }
-
-    public override void Tick(float deltaSeconds)
     {
         throw new NotImplementedException();
     }
