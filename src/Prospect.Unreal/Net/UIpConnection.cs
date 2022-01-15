@@ -51,7 +51,12 @@ public class UIpConnection : UNetConnection
 
     public override void InitLocalConnection(UNetDriver inDriver, UdpClient inSocket, FUrl inURL, EConnectionState inState, int inMaxPacket = 0, int inPacketOverhead = 0)
     {
-        throw new NotSupportedException();
+        InitBase(inDriver, inSocket, inURL, inState,
+            // Use the default packet size/overhead unless overridden by a child class
+            (inMaxPacket == 0 || inMaxPacket > MaxPacketSize) ? MaxPacketSize : inMaxPacket,
+            inPacketOverhead == 0 ? inMaxPacket : inPacketOverhead);
+        //RemoteAddr = new IPEndPoint(inURL.Host, inURL.Port);
+        InitSendBuffer();
     }
 
     public override void LowLevelSend(byte[] data, int countBits, FOutPacketTraits traits)
@@ -82,8 +87,13 @@ public class UIpConnection : UNetConnection
             {
                 throw new UnrealNetException();
             }
-            
-            Socket.Send(dataToSend, countBytes, RemoteAddr);
+
+            // can't send remote addr if client is already set. receive is called before now too, so need to establish socket before then.
+            if (RemoteAddr.Address.GetAddressBytes().All(a => a == 0xff))
+                Socket.Send(dataToSend, countBytes);
+
+            else
+                Socket.Send(dataToSend, countBytes, RemoteAddr);
         }
     }
 

@@ -31,6 +31,7 @@ public class PacketHandler
     private FBitReader _incomingPacket;
 
     private bool _bBeganHandshaking;
+    private Action HandshakeCompleteAction;
 
     public PacketHandler()
     {
@@ -116,15 +117,17 @@ public class PacketHandler
         return Outgoing_Internal(packet, countBits, traits, false, EmptyAddress);
     }
 
-    public void BeginHandshaking()
+    public void BeginHandshaking(Action handshakeComplete = null)
     {
-        // bBeganHandshaking = true;
+        _bBeganHandshaking = true;
+
+        HandshakeCompleteAction = handshakeComplete;
 
         foreach (var component in _handlerComponents)
         {
             if (component.RequiresHandshake && !component.IsInitialized())
             {
-                component.NotifiyHandshakeBegin();
+                component.NotifyHandshakeBegin();
             }
         }
     }
@@ -324,6 +327,11 @@ public class PacketHandler
         }
         
         SetState(HandlerState.Initialized);
+
+        if (_bBeganHandshaking)
+        {
+            HandshakeCompleteAction();
+        }
     }
 
     public bool IsFullyInitialized()
@@ -430,7 +438,7 @@ public class PacketHandler
                     // (components closer to the Socket, perform their handshake first)
                     if (_bBeganHandshaking && !curComponent.IsInitialized() && inComponent.RequiresHandshake && !bPassedHandshakeNotify && curComponent.RequiresHandshake)
                     {
-                        curComponent.NotifiyHandshakeBegin();
+                        curComponent.NotifyHandshakeBegin();
                         bPassedHandshakeNotify = true;
                     }
                 }

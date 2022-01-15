@@ -59,6 +59,36 @@ public class StatelessConnectHandlerComponent : HandlerComponent
     private int _lastClientSequence;
 
     /// <summary>
+    ///     The last time a handshake packet was sent - used for detecting failed sends.
+    /// </summary>
+    private double _lastClientSendTimestamp;
+
+    /// <summary>
+    ///     The local (client) time at which the challenge was last updated
+    /// </summary>
+    private double _lastChallengeTimestamp;
+
+    /// <summary>
+    ///     The local (client) time at which the last restart handshake request was receive
+    /// </summary>
+    private double _lastRestartPacketTimestamp;
+
+    /// <summary>
+    ///     The SecretId value of the last challenge response sent
+    /// </summary>
+    private byte _lastSecretId;
+
+    /// <summary>
+    ///     The Timestamp value of the last challenge response sent
+    /// </summary>
+    private double _lastTimestamp;
+
+    /// <summary>
+    ///     The Cookie value of the last challenge response sent. Will differ from AuthorisedCookie, if a handshake retry is triggered.
+    /// </summary>
+    private byte[] _lastCookie = new byte[CookieByteSize];
+
+    /// <summary>
     ///     Client: Whether or not we are in the middle of a restarted handshake.
     ///     Server: Whether or not the last handshake was a restarted handshake.
     /// </summary>
@@ -176,7 +206,136 @@ public class StatelessConnectHandlerComponent : HandlerComponent
             {
                 if (Handler.Mode == HandlerMode.Client)
                 {
-                    throw new NotSupportedException();
+                    if (State == HandlerComponentState.UnInitialized || State == HandlerComponentState.InitializedOnLocal)
+                    {
+                        if (bRestartHandshake)
+                        {
+                            //UE_LOG(LogHandshake, Log, TEXT("Ignoring restart handshake request, while already restarted."));
+                        }
+                        // Receiving challenge, verify the timestamp is > 0.0f
+                        else if (timestamp > 0.0)
+                        {
+                            _lastChallengeTimestamp = _driver?.GetElapsedTime() ?? 0.0;
+
+                            SendChallengeResponse(secretId, timestamp, cookie);
+
+                            // Utilize this state as an intermediary, indicating that the challenge response has been sent
+                            SetState(HandlerComponentState.InitializedOnLocal);
+                        }
+                        // Receiving challenge ack, verify the timestamp is < 0.0f
+                        else if (timestamp < 0.0)
+                        {
+                            if (!_bRestartedHandshake)
+                            { 
+                                var ServerConn =  _driver?.ServerConnection;
+
+                                // Extract the initial packet sequence from the random Cookie data
+                                if (ServerConn != null)
+                                {
+                                    _lastServerSequence = BinaryPrimitives.ReadInt16LittleEndian(cookie) & (UNetConnection.MaxPacketId - 1);
+                                    _lastClientSequence = BinaryPrimitives.ReadInt16LittleEndian(cookie.Slice(2)) & (UNetConnection.MaxPacketId - 1);
+
+                                    ServerConn.InitSequence(_lastServerSequence, _lastClientSequence);
+                                }
+                                // Save the final authorized cookie
+                                cookie.CopyTo(_authorisedCookie);
+                            }
+
+                            // Now finish initializing the handler - flushing the queued packet buffer in the process.
+                            SetState(HandlerComponentState.Initialized);
+                            Initialized();
+
+                            _bRestartedHandshake = false;
+                        }
+                    }
+                    else if (bRestartHandshake)
+                    {
+                        var bValidAuthCookie = !_authorisedCookie.All(b => b == 0);
+
+                        // The server has requested us to restart the handshake process - this is because
+                        // it has received traffic from us on a different address than before.
+                        if (bValidAuthCookie)
+                        {
+                            bool bPassedDelayCheck = false;
+                            bool bPassedDualIPCheck = false;
+                            double CurrentTime = FPlatformTime.Seconds();
+
+                            if (!_bRestartedHandshake)
+                            {
+                                var ServerConn = _driver?.ServerConnection;
+                                // todo
+                                //double LastNetConnPacketTime = ServerConn?.lastre(ServerConn != nullptr ? ServerConn->LastReceiveRealtime : 0.0);
+
+                                // The server may send multiple restart handshake packets, so have a 10 second delay between accepting them
+                                //bPassedDelayCheck = (CurrentTime - LastClientSendTimestamp) > 10.0;
+
+                                // Some clients end up sending packets duplicated over multiple IP's, triggering the restart handshake.
+                                // Detect this by checking if any restart handshake requests have been received in roughly the last second
+                                // (Dual IP situations will make the server send them constantly) - and override the checks as a failsafe,
+                                // if no NetConnection packets have been received in the last second.
+                                //double LastRestartPacketTimeDiff = CurrentTime - _lastRestartPacketTimestamp;
+                                //double LastNetConnPacketTimeDiff = CurrentTime - LastNetConnPacketTime;
+
+                                //bPassedDualIPCheck = _lastRestartPacketTimestamp == 0.0 || LastRestartPacketTimeDiff > 1.1 || LastNetConnPacketTimeDiff > 1.0;
+                            }
+
+                            _lastRestartPacketTimestamp = CurrentTime;
+                            double LastLogStartTime = 0.0;
+                            int LogCounter = 0;
+                            Func<bool> WithinHandshakeLogLimit = new Func<bool>(() => {
+                                const double LogCountPeriod = 30.0;
+                                const byte MaxLogCount = 3;
+                                double CurTimeApprox = _driver.GetElapsedTime();
+                                bool bWithinLimit = false;
+                                if ((CurTimeApprox - LastLogStartTime) > LogCountPeriod)
+                                {
+                                    LastLogStartTime = CurTimeApprox;
+                                    LogCounter = 1;
+                                    bWithinLimit = true;
+                                }
+                                else if (LogCounter < MaxLogCount)
+                                {
+                                    LogCounter++;
+                                    bWithinLimit = true;
+                                }
+
+                                return bWithinLimit;
+                            });
+
+                            if (!_bRestartedHandshake && bPassedDelayCheck && bPassedDualIPCheck)
+                            {
+                                Logger.Verbose("Beginning restart handshake process.");
+
+                                _bRestartedHandshake = true;
+
+                                SetState(HandlerComponentState.UnInitialized);
+                                NotifyHandshakeBegin();
+                            }
+                            else if (WithinHandshakeLogLimit())
+                            {
+                                if (_bRestartedHandshake)
+                                {
+                                    Logger.Verbose("Ignoring restart handshake request, while already restarted (this is normal).");
+                                }
+                                else if (!bPassedDelayCheck)
+                                {
+                                    Logger.Verbose("Ignoring restart handshake request, due to < 10 seconds since last handshake.");
+                                }
+                                else // if (!bPassedDualIPCheck)
+                                {
+                                    Logger.Verbose("Ignoring restart handshake request, due to recent NetConnection packets.");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Logger.Verbose("Server sent restart handshake request, when we don't have an authorised cookie.");
+                        }
+                    }
+                    else
+                    {
+                        // Ignore, could be a dupe/out-of-order challenge packet
+                    }
                 }
                 else if (Handler.Mode == HandlerMode.Server)
                 {
@@ -248,11 +407,7 @@ public class StatelessConnectHandlerComponent : HandlerComponent
 
             if (bHandshakePacket)
             {
-                if (Handler.Mode == HandlerMode.Client)
-                {
-                    throw new NotSupportedException();
-                }
-                else if (Handler.Mode == HandlerMode.Server)
+                if (Handler.Mode == HandlerMode.Server)
                 {
                     var bInitialConnect = timestamp == 0.0;
                     if (bInitialConnect)
@@ -367,6 +522,48 @@ public class StatelessConnectHandlerComponent : HandlerComponent
         HMACSHA1.HashData(_handshakeSecret[secretId], writer.GetData().AsSpan((int)writer.GetNumBytes()), outCookie);
     }
 
+    public override void NotifyHandshakeBegin()
+    {
+        if (Handler.Mode != HandlerMode.Client) return;
+
+        var ServerConn = _driver?.ServerConnection;
+
+        if (_driver == null || ServerConn == null)
+        {
+            Logger.Warning("Tried to send handshake connect packet without a server connection.");
+            return;
+        }
+
+        using var ackPacket = new FBitWriter(GetAdjustedSizeBits(HandshakePacketSizeBits) + 1);
+        var bHandshakePacket = (byte)1;
+        var bRestartHandshake = (byte)(_bRestartedHandshake ? 1 : 0);
+        var secretIdPad = (byte)0;
+
+        //if (MagicHeader.Num() > 0) challengePacket.SerializeBits(MagicHeader.GetData(), MagicHeader.Num());
+
+        ackPacket.WriteBit(bHandshakePacket);
+        // In order to prevent DRDoS reflection amplification attacks, clients must pad the packet to match server packet size
+        ackPacket.WriteBit(bRestartHandshake);
+        ackPacket.WriteBit(secretIdPad);
+        ackPacket.Serialize(new Byte[28], 28);
+
+        Logger.Verbose("NotifyHandshakeBegin");
+
+        CapHandshakePacket(ackPacket);
+
+        // Disable PacketHandler parsing, and send the raw packet
+        ServerConn.Handler?.SetRawSend(true);
+
+        if (_driver.IsNetResourceValid())
+        {
+            ServerConn.LowLevelSend(ackPacket.GetData(), (int)ackPacket.GetNumBits(), new FOutPacketTraits());
+        }
+
+        ServerConn.Handler?.SetRawSend(false);
+
+        _lastClientSendTimestamp = FPlatformTime.Seconds();
+    }
+
     private void SendConnectChallenge(IPEndPoint address)
     {
         if (_driver == null)
@@ -408,6 +605,60 @@ public class StatelessConnectHandlerComponent : HandlerComponent
         }
 
         connectionlessHandler?.SetRawSend(false);
+    }
+
+    private void SendChallengeResponse(byte inSecretId, double timestamp, Span<byte> cookie)
+    {
+        var ServerConn = _driver?.ServerConnection;
+
+        if (ServerConn == null)
+        {
+            Logger.Warning("Tried to send connect challenge without driver");
+            return;
+        }
+        using var challengePacket = new FBitWriter(GetAdjustedSizeBits(_bRestartedHandshake ? RestartResponseSizeBits : HandshakePacketSizeBits) + 1);
+        var bHandshakePacket = (byte)1;
+        var bRestartHandshake = (byte)(_bRestartedHandshake ? 1 : 0);
+
+        //if (MagicHeader.Num() > 0)
+        {
+            //challengePacket.SerializeBits(MagicHeader.GetData(), MagicHeader.Num());
+        }
+
+        challengePacket.WriteBit(bHandshakePacket);
+        challengePacket.WriteBit(bRestartHandshake);
+        challengePacket.WriteBit(inSecretId);
+        challengePacket.WriteDouble(timestamp);
+        challengePacket.Serialize(cookie, cookie.Length);
+
+        if (_bRestartedHandshake)
+        {
+            //challengePacket.Serialize(AuthorisedCookie, COOKIE_BYTE_SIZE);
+        }
+
+        Logger.Verbose("SendChallengeResponse. Timestamp: {Timestamp}, Cookie: {Cookie}", timestamp, Convert.ToHexString(cookie));
+
+        CapHandshakePacket(challengePacket);
+
+        ServerConn.Handler?.SetRawSend(true);
+
+        if (_driver.IsNetResourceValid())
+        {
+            ServerConn.LowLevelSend(challengePacket.GetData(), (int)challengePacket.GetNumBits(), new FOutPacketTraits());
+        }
+
+        ServerConn.Handler?.SetRawSend(false);
+
+        var CurSequence = cookie;
+
+        _lastClientSendTimestamp = FPlatformTime.Seconds();
+        _lastSecretId = inSecretId;
+        _lastTimestamp = timestamp;
+
+        _lastServerSequence = BinaryPrimitives.ReadInt16LittleEndian(cookie) & (UNetConnection.MaxPacketId - 1);
+        _lastClientSequence = BinaryPrimitives.ReadInt16LittleEndian(cookie.Slice(2)) & (UNetConnection.MaxPacketId - 1);
+
+        _lastCookie = cookie.ToArray();
     }
 
     private void SendChallengeAck(IPEndPoint address, byte[] inCookie)
@@ -564,7 +815,33 @@ public class StatelessConnectHandlerComponent : HandlerComponent
     {
         if (Handler.Mode == HandlerMode.Client)
         {
-            throw new NotImplementedException();
+            if (State != HandlerComponentState.Initialized && _lastClientSendTimestamp != 0.0)
+            {
+                double LastSendTimeDiff = FPlatformTime.Seconds() - _lastClientSendTimestamp;
+
+                if (LastSendTimeDiff > 1.0)
+                {
+                    var bRestartChallenge = _driver != null && ((_driver.GetElapsedTime() - _lastChallengeTimestamp) > MinCookieLifetime);
+
+                    if (bRestartChallenge)
+                    {
+                        SetState(HandlerComponentState.UnInitialized);
+                    }
+
+                    if (State == HandlerComponentState.UnInitialized)
+                    {
+                        Logger.Verbose("Initial handshake packet timeout - resending.");
+
+                        NotifyHandshakeBegin();
+                    }
+                    else if (State == HandlerComponentState.InitializedOnLocal && _lastTimestamp != 0.0)
+                    {
+                        Logger.Verbose("Challenge response packet timeout - resending.");
+
+                        SendChallengeResponse(_lastSecretId, _lastTimestamp, _lastCookie);
+                    }
+                }
+            }
         }
         else
         {

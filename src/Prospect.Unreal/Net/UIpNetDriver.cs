@@ -11,10 +11,18 @@ public class UIpNetDriver : UNetDriver
 
     private bool _isDisposed;
     
-    public UIpNetDriver(IPAddress host, int port)
+    public UIpNetDriver(IPAddress host, int port, bool server)
     {
-        ServerIp = new IPEndPoint(host, port);
-        Socket = new UdpClient(ServerIp);
+        if (server)
+        {
+            ServerIp = new IPEndPoint(host, port);
+            Socket = new UdpClient(ServerIp); // binds to local
+        }
+        else
+        {
+            Socket = new UdpClient(host.ToString(), port); // binds to remote, establishes local port
+            ServerIp = new IPEndPoint(host, ((IPEndPoint)Socket.Client.LocalEndPoint).Port);
+        }
         ReceiveThread = new FReceiveThreadRunnable(this);
     }
 
@@ -22,9 +30,28 @@ public class UIpNetDriver : UNetDriver
     public UdpClient Socket { get; }
     public FReceiveThreadRunnable ReceiveThread { get; }
 
-    public override bool Init(FNetworkNotify notify)
+    public bool InitConnect(FNetworkNotify InNotify, FUrl ConnectURL)
     {
-        if (!base.Init(notify))
+        if (!Init(InNotify))
+        {
+            Logger.Warning("Failed to init net driver ConnectURL: %s", ConnectURL.ToString());
+            return false;
+        }
+
+        // Create new connection.
+        var ipConnection = new UIpConnection();
+        ServerConnection = ipConnection;
+        ServerConnection.InitLocalConnection(this, Socket, ConnectURL, EConnectionState.USOCK_Pending);
+        int DestinationPort = ConnectURL.Port;
+        Logger.Warning("Game client on port %i, rate %i", DestinationPort, ServerConnection.CurrentNetSpeed);
+        CreateInitialClientChannels();
+        ReceiveThread.Start();
+        return true;
+    }
+
+    public bool InitListen(FNetworkNotify notify)
+    {
+        if (!Init(notify))
         {
             return false;
         }
@@ -46,7 +73,7 @@ public class UIpNetDriver : UNetDriver
         {
             Logger.Information("Received from {Adress} data {Buffer}", packet.Address, packet.DataView.GetData());
 
-            UNetConnection? connection = null;
+            UNetConnection? connection = ServerConnection;
 
             if (Equals(packet.Address, ServerIp))
             {
