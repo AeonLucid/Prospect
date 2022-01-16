@@ -1,4 +1,3 @@
-using System.Text;
 using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
@@ -17,16 +16,64 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
 
     private UGameInstance? _owningGameInstance;
     private AGameModeBase? _authorityGameMode;
+    private List<ULevel> _levels;
 
-    public UWorld(FUrl url)
+    public UWorld()
     {
-        Url = url;
         _owningGameInstance = null;
         _authorityGameMode = null;
+        _levels = new List<ULevel>();
     }
     
-    public FUrl Url { get; }
+    /// <summary>
+    ///     Persistent level containing the world info, default brush and actors spawned during gameplay among other things
+    /// </summary>
+    public ULevel? PersistentLevel { get; private set; }
+    
+    /// <summary>
+    ///     The NAME_GameNetDriver game connection(s) for client/server communication
+    /// </summary>
     public UNetDriver? NetDriver { get; private set; }
+    
+    /// <summary>
+    ///     Whether actors have been initialized for play
+    /// </summary>
+    public bool bActorsInitialized { get; private set; }
+    
+    /// <summary>
+    ///     Whether BeginPlay has been called on actors
+    /// </summary>
+    public bool bBegunPlay { get; private set; }
+    
+    /// <summary>
+    ///     The URL that was used when loading this World.
+    /// </summary>
+    public FUrl? Url { get; private set; }
+    
+    /// <summary>
+    ///     Time in seconds since level began play, but IS paused when the game is paused, and IS dilated/clamped.
+    /// </summary>
+    public float TimeSeconds { get; private set; }
+    
+    /// <summary>
+    ///     Time in seconds since level began play, but IS NOT paused when the game is paused, and IS dilated/clamped.
+    /// </summary>
+    public float UnpausedTimeSeconds { get; private set; }
+    
+    /// <summary>
+    ///     Time in seconds since level began play, but IS NOT paused when the game is paused, and IS NOT dilated/clamped.
+    /// </summary>
+    public float RealTimeSeconds { get; private set; }
+    
+    /// <summary>
+    ///     Time in seconds since level began play, but IS paused when the game is paused, and IS NOT dilated/clamped.
+    /// </summary>
+    public float AudioTimeSeconds { get; private set; }
+    
+    /// <summary>
+    ///     Frame delta time in seconds adjusted by e.g. time dilation.
+    /// </summary>
+    public float DeltaTimeSeconds { get; private set; }
     
     public void Tick(float deltaTime)
     {
@@ -77,7 +124,51 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
     {
         return _authorityGameMode;
     }
-    
+
+    public void InitializeActorsForPlay(FUrl inUrl, bool bResetTime)
+    {
+        // Don't reset time for seamless world transitions.
+        if (bResetTime)
+        {
+            TimeSeconds = 0.0f;
+            UnpausedTimeSeconds = 0.0f;
+            RealTimeSeconds = 0.0f;
+            AudioTimeSeconds = 0.0f;
+        }
+
+        // Get URL Options
+        var options = inUrl.OptionsToString();
+
+        // Set level info.
+        if (!string.IsNullOrEmpty(inUrl.GetOption("load", null)))
+        {
+            Url = inUrl;
+        }
+        
+        // Init level gameplay info.
+        if (!AreActorsInitialized())
+        {
+            // Initialize network actors and start execution.
+            for (int i = 0; i < _levels.Count; i++)
+            {
+                _levels[i].InitializeNetworkActors();
+            }
+
+            // Enable actor script calls.
+            bStartup = true;
+            bActorsInitialized = true;
+
+            // Spawn server actors
+            // TODO: GEngine SpawnServerActors.
+            
+            // Init the game mode.
+            if (_authorityGameMode != null && !_authorityGameMode.IsActorInitialized())
+            {
+                _authorityGameMode.InitGame(inUrl.Map /* TODO: FPaths.GetBaseFilename */, options, out _);
+            }
+        }
+    }
+
     public bool Listen()
     {
         if (NetDriver != null)
@@ -347,6 +438,16 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
         }
 
         return true;
+    }
+
+    public bool HasBegunPlay()
+    {
+        return bBegunPlay && PersistentLevel != null && PersistentLevel.Actors.Count != 0;
+    }
+
+    public bool AreActorsInitialized()
+    {
+        return bActorsInitialized && PersistentLevel != null && PersistentLevel.Actors.Count != 0;
     }
     
     public async ValueTask DisposeAsync()

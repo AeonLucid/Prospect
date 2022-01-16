@@ -12,15 +12,7 @@ public partial class UWorld
         error = string.Empty;
         
         // Make the option string.
-        var optionsBuilder = new StringBuilder();
-        
-        foreach (var op in inURL.Options)
-        {
-            optionsBuilder.Append('?');
-            optionsBuilder.Append(op);
-        }
-
-        var options = optionsBuilder.ToString();
+        var options = inURL.OptionsToString();
 
         var gameMode = GetAuthGameMode();
         if (gameMode != null)

@@ -18,6 +18,39 @@ public class FUrl
     public string Portal { get; set; } = string.Empty;
     public bool Valid { get; set; } = true;
 
+    public string? GetOption(string match, string? defaultValue)
+    {
+        var len = match.Length;
+        if (len > 0)
+        {
+            foreach (var option in Options)
+            {
+                if (option.StartsWith(match))
+                {
+                    if (option[len - 1] == '=' || option[len] == '=' || option.Length == len)
+                    {
+                        return option.Substring(len);
+                    }
+                }
+            }
+        }
+
+        return defaultValue;
+    }
+
+    public string OptionsToString()
+    {
+        var optionsBuilder = new StringBuilder();
+        
+        foreach (var op in Options)
+        {
+            optionsBuilder.Append('?');
+            optionsBuilder.Append(op);
+        }
+
+        return optionsBuilder.ToString();
+    }
+    
     public string ToString(bool fullyQualified)
     {
         var result = new StringBuilder();

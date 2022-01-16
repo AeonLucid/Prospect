@@ -1,9 +1,12 @@
 ﻿using Prospect.Unreal.Core;
+using Prospect.Unreal.Runtime;
 
 namespace Prospect.Unreal.Net.Actors;
 
 public class AActor
 {
+    private bool bActorInitialized;
+    
     /// <summary>
     ///     Sets the value of Role without causing other side effects to this instance.
     /// </summary>
@@ -31,5 +34,15 @@ public class AActor
     {
         // TODO: Implement
         throw new NotImplementedException();
+    }
+
+    public UWorld GetWorld()
+    {
+        // if ()
+    }
+
+    public bool IsActorInitialized()
+    {
+        return bActorInitialized;
     }
 }

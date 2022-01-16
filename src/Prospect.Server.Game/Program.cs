@@ -36,11 +36,11 @@ internal static class Program
             Map = "/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap"
         };
         
-        //Task.Run(() => { Thread.Sleep(100); new Client().Connect("127.0.0.1", 7777, worldUrl); });
-        await using (var world = new ProspectWorld(worldUrl))
+        await using (var world = new ProspectWorld())
         {
             world.SetGameInstance(new UGameInstance());
             world.SetGameMode(worldUrl);
+            world.InitializeActorsForPlay(worldUrl, true);
             world.Listen();
         
             while (await Tick.WaitForNextTickAsync())
