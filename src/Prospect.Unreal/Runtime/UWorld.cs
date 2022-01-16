@@ -86,10 +86,10 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
             return false;
         }
         
-        NetDriver = new UIpNetDriver(Url.Host, Url.Port);
+        NetDriver = new UIpNetDriver(Url.Host, Url.Port, IsServer());
         NetDriver.SetWorld(this);
 
-        if (!NetDriver.Init(this))
+        if (!((UIpNetDriver)NetDriver).InitListen(this))
         {
             Logger.Error("Failed to listen");
             NetDriver = null;

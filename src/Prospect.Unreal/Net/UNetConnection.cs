@@ -1123,7 +1123,8 @@ public abstract class UNetConnection : UPlayer
         }
         
         Handler = new PacketHandler();
-        Handler.Initialize(HandlerMode.Server /* Mode */, UNetConnection.MaxPacketSize * 8 ,false);
+        var mode = Driver.ServerConnection != null ? HandlerMode.Client : HandlerMode.Server;
+        Handler.Initialize(mode, UNetConnection.MaxPacketSize * 8 ,false);
         
         StatelessConnectComponent = (StatelessConnectHandlerComponent) Handler.AddHandler<StatelessConnectHandlerComponent>();
         StatelessConnectComponent.SetDriver(Driver);

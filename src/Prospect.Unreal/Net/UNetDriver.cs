@@ -60,6 +60,11 @@ public abstract class UNetDriver : IAsyncDisposable
     public Dictionary<FName, FChannelDefinition> ChannelDefinitionMap { get; }
 
     /// <summary>
+    ///     AConnection to the server (this net driver is a client)
+    /// </summary>
+    public UNetConnection ServerConnection { get; set; }
+
+    /// <summary>
     ///     Array of connections to clients (this net driver is a host) - unsorted, and ordering changes depending on actor replication
     /// </summary>
     public List<UNetConnection> ClientConnections { get; }
@@ -184,7 +189,7 @@ public abstract class UNetDriver : IAsyncDisposable
 
     public bool IsServer()
     {
-        return true;
+        return ServerConnection == null;
     }
 
     public bool IsKnownChannelName(FName name)
@@ -221,6 +226,17 @@ public abstract class UNetDriver : IAsyncDisposable
         CreateInitialServerChannels(newConnection);
 
         // TODO: NetworkObjectList > HandleConnectionAdded
+    }
+
+    protected void CreateInitialClientChannels()
+    {
+        foreach (var channelDef in ChannelDefinitions)
+        {
+            if (channelDef.InitialServer)
+            {
+                ServerConnection.CreateChannelByName(channelDef.Name, EChannelCreateFlags.OpenedLocally, channelDef.StaticChannelIndex);
+            }
+        }
     }
 
     private void CreateInitialServerChannels(UNetConnection clientConnection)

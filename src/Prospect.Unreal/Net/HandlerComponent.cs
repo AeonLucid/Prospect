@@ -70,7 +70,7 @@ public abstract class HandlerComponent
 
     public abstract void Initialize();
 
-    public virtual void NotifiyHandshakeBegin()
+    public virtual void NotifyHandshakeBegin()
     {
     }
 
