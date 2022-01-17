@@ -1,5 +1,6 @@
 ﻿using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
+using Prospect.Unreal.Core.Objects;
 using Prospect.Unreal.Net.Actors;
 
 namespace Prospect.Unreal.Net;
@@ -10,7 +11,7 @@ public ref struct FActorSpawnParameters
     ///     A name to assign as the Name of the Actor being spawned.
     ///     If no value is specified, the name of the spawned Actor will be automatically generated using the form [Class]_[Number].
     /// </summary>
-    public FName? Name { get; set; }
+    public FName Name { get; set; } = EName.None;
     
     /// <summary>
     ///     An Actor to use as a template when spawning the new Actor.

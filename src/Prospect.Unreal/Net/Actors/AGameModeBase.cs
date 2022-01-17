@@ -1,4 +1,5 @@
 ﻿using Prospect.Unreal.Core;
+using Prospect.Unreal.Core.Objects;
 using Prospect.Unreal.Runtime;
 
 namespace Prospect.Unreal.Net.Actors;
@@ -19,6 +20,12 @@ public class AGameModeBase : AInfo
 
     public virtual void InitGame(string mapName, string options, out string errorMessage)
     {
+        // Default error.
+        errorMessage = string.Empty;
+        
+        // Find world.
+        var world = GetWorld();
+        
         // Save Options for future use
         OptionsString = options;
 
@@ -28,7 +35,7 @@ public class AGameModeBase : AInfo
             ObjectFlags = EObjectFlags.RF_Transient
         };
 
-        GameSession = World.SpawnActor();
+        // GameSession = world.SpawnActor();
     }
 
     public virtual void InitGameState()

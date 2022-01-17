@@ -1,5 +1,6 @@
 using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
+using Prospect.Unreal.Core.Objects;
 using Prospect.Unreal.Exceptions;
 using Prospect.Unreal.Net;
 using Prospect.Unreal.Net.Actors;
@@ -16,7 +17,17 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
 
     private UGameInstance? _owningGameInstance;
     private AGameModeBase? _authorityGameMode;
+    
+    /// <summary>
+    ///     Array of levels currently in this world. Not serialized to disk to avoid hard references.
+    /// </summary>
     private List<ULevel> _levels;
+    
+    /// <summary>
+    ///     Pointer to the current level being edited.
+    ///     Level has to be in the Levels array and == PersistentLevel in the game.
+    /// </summary>
+    private ULevel? _currentLevel;
 
     public UWorld()
     {
@@ -39,6 +50,11 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
     ///     Whether actors have been initialized for play
     /// </summary>
     public bool bActorsInitialized { get; private set; }
+    
+    /// <summary>
+    ///     Is the world in its actor initialization phase.
+    /// </summary>
+    public bool bStartup { get; private set; }
     
     /// <summary>
     ///     Whether BeginPlay has been called on actors
@@ -149,9 +165,9 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
         if (!AreActorsInitialized())
         {
             // Initialize network actors and start execution.
-            for (int i = 0; i < _levels.Count; i++)
+            foreach (var level in _levels)
             {
-                _levels[i].InitializeNetworkActors();
+                level.InitializeNetworkActors();
             }
 
             // Enable actor script calls.

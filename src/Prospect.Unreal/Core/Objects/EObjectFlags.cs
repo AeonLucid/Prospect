@@ -1,4 +1,4 @@
-﻿namespace Prospect.Unreal.Core;
+﻿namespace Prospect.Unreal.Core.Objects;
 
 [Flags]
 public enum EObjectFlags

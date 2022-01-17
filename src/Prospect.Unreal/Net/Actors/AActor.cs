@@ -1,11 +1,18 @@
 ﻿using Prospect.Unreal.Core;
+using Prospect.Unreal.Core.Objects;
 using Prospect.Unreal.Runtime;
 
 namespace Prospect.Unreal.Net.Actors;
 
-public class AActor
+public class AActor : UObject
 {
     private bool bActorInitialized;
+
+    // TODO: UPROPERTY(BlueprintReadWrite, ReplicatedUsing=OnRep_Instigator, meta=(ExposeOnSpawn=true, AllowPrivateAccess=true), Category=Actor)
+    /// <summary>
+    ///     Pawn responsible for damage and other gameplay events caused by this actor.
+    /// </summary>
+    private APawn? _instigator;
     
     /// <summary>
     ///     Sets the value of Role without causing other side effects to this instance.
@@ -36,9 +43,38 @@ public class AActor
         throw new NotImplementedException();
     }
 
-    public UWorld GetWorld()
+    public UWorld? GetWorld()
     {
-        // if ()
+        if (!HasAnyFlags(EObjectFlags.RF_ClassDefaultObject))
+        {
+            var outer = GetOuter();
+            if (outer == null)
+            {
+                return null;
+            }
+
+            if (!outer.HasAnyFlags(EObjectFlags.RF_BeginDestroyed) &&
+                !outer.IsUnreachable())
+            {
+                var level = GetLevel();
+                if (level != null)
+                {
+                    return level.OwningWorld;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public ULevel? GetLevel()
+    {
+        return GetTypedOuter<ULevel>();
+    }
+
+    public APawn? GetInstigator()
+    {
+        return _instigator;
     }
 
     public bool IsActorInitialized()

@@ -15,7 +15,7 @@ internal class Client
     public async Task<UIpNetDriver> Connect(string ipAddr, int port, FUrl worldUrl)
     {
         var connection = new UIpNetDriver(System.Net.IPAddress.Parse(ipAddr), port, false);
-        await using (var world = new ProspectWorld(worldUrl))
+        await using (var world = new ProspectWorld())
             connection.InitConnect(world, new FUrl { Host = System.Net.IPAddress.Parse(ipAddr), Port = port });
         UnitConn = connection.ServerConnection;
         connection.ServerConnection.Handler?.BeginHandshaking(SendInitialJoin);

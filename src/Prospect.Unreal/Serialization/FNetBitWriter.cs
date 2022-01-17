@@ -1,5 +1,6 @@
 ﻿using Prospect.Unreal.Core;
 using Prospect.Unreal.Core.Names;
+using Prospect.Unreal.Core.Objects;
 using Prospect.Unreal.Net;
 
 namespace Prospect.Unreal.Serialization;
