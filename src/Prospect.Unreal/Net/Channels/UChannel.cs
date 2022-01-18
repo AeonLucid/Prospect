@@ -541,7 +541,7 @@ public abstract class UChannel
         // Set bunch flags.
         var bDormancyClose = bunch.bClose && (bunch.CloseReason == EChannelCloseReason.Dormancy);
 
-        if (OpenedLocally && ((OpenPacketId.First == UnrealConstants.IndexNone) || ((Connection.ResendAllDataState == EResendAllDataState.None) && !bDormancyClose)))
+        if (OpenedLocally && ((OpenPacketId.First == UnrealConstants.IndexNone) || ((Connection.ResendAllDataState != EResendAllDataState.None) && !bDormancyClose)))
         {
             var bOpenBunch = true;
 
