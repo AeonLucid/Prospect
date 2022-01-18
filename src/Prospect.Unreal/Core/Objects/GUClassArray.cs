@@ -13,6 +13,6 @@ public class GUClassArray
     public static UClass StaticClass(Type type)
     {
         // TODO: Implement
-        return new UClass();
+        return new UClass(type);
     }
 }

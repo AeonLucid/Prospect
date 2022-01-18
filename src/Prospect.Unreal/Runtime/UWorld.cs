@@ -34,6 +34,8 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
         _owningGameInstance = null;
         _authorityGameMode = null;
         _levels = new List<ULevel>();
+
+        Url = new FUrl();
     }
     
     /// <summary>
@@ -64,7 +66,7 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
     /// <summary>
     ///     The URL that was used when loading this World.
     /// </summary>
-    public FUrl? Url { get; private set; }
+    public FUrl Url { get; private set; }
     
     /// <summary>
     ///     Time in seconds since level began play, but IS paused when the game is paused, and IS dilated/clamped.
@@ -156,7 +158,7 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
         var options = inUrl.OptionsToString();
 
         // Set level info.
-        if (!string.IsNullOrEmpty(inUrl.GetOption("load", null)))
+        if (string.IsNullOrEmpty(inUrl.GetOption("load", null)))
         {
             Url = inUrl;
         }
@@ -444,6 +446,49 @@ public abstract partial class UWorld : FNetworkNotify, IAsyncDisposable
         connection.FlushNet();
         // connection.QueuedBits = 0;
         connection.SetClientLoginState(EClientLoginState.Welcomed);
+    }
+
+    private void AddNetworkActor(AActor? actor)
+    {
+        if (actor == null)
+        {
+            Logger.Verbose("Failed to add actor, null");
+            return;
+        }
+
+        if (actor.IsPendingKillPending())
+        {
+            Logger.Verbose("Failed to add actor, IsPendingKillPending");
+            return;
+        }
+
+        var level = actor.GetLevel();
+        if (level == null || !ContainsLevel(level))
+        {
+            Logger.Verbose("Failed to add actor, world does not contain level");
+            return;
+        }
+
+        if (NetDriver != null)
+        {
+            NetDriver.AddNetworkActor(actor);
+        }
+    }
+
+    private void RemoveNetworkActor(AActor? actor)
+    {
+        if (actor != null)
+        {
+            if (NetDriver != null)
+            {
+                NetDriver.RemoveNetworkActor(actor);
+            }
+        }
+    }
+
+    private bool ContainsLevel(ULevel inLevel)
+    {
+        return _levels.Contains(inLevel);
     }
 
     public bool IsServer()

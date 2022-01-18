@@ -2,6 +2,7 @@
 using System.Net;
 using Prospect.Unreal.Core.Names;
 using Prospect.Unreal.Exceptions;
+using Prospect.Unreal.Net.Actors;
 using Prospect.Unreal.Net.Channels;
 using Prospect.Unreal.Net.Channels.Actor;
 using Prospect.Unreal.Net.Channels.Control;
@@ -267,6 +268,29 @@ public abstract class UNetDriver : IAsyncDisposable
             EName.Voice => new UVoiceChannel(),
             _ => throw new UnrealNetException($"Attempted to create unknown channel {chName}")
         };
+    }
+
+    public void AddNetworkActor(AActor actor)
+    {
+        // if (!IsDormInitialStartupActor(Actor))
+        // {
+        //     GetNetworkObjectList().FindOrAdd(Actor, this);
+        //     if (ReplicationDriver)
+        //     {
+        //         ReplicationDriver->AddNetworkActor(Actor);
+        //     }
+        // }
+    }
+
+    public void RemoveNetworkActor(AActor actor)
+    {
+        // Remove from renamed list if destroyed
+        // RenamedStartupActors.Remove(Actor->GetFName());
+        //
+        // if (ReplicationDriver)
+        // {
+        //     ReplicationDriver->RemoveNetworkActor(Actor);
+        // }
     }
 
     public virtual ValueTask DisposeAsync()

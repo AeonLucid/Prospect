@@ -39,6 +39,12 @@ public class UObjectBaseUtility : UObjectBase
         // TODO: GUObjectArray
         return false;
     }
+
+    public bool IsPendingKill()
+    {
+        // TODO: GUObjectArray
+        return false;
+    }
     
     /*
      * Outer & Package
