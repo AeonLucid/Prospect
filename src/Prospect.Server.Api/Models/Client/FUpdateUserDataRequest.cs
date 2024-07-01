@@ -32,5 +32,5 @@ public class FUpdateUserDataRequest
     /// <summary>
     ///     Unique PlayFab assigned ID of the user on whom the operation will be performed.
     /// </summary>
-    public string PlayFabId { get; set; }
+    public string? PlayFabId { get; set; }
 }

@@ -120,14 +120,14 @@ public class UserDataService
     /// <param name="currentUserId">
     ///     The authenticated user id.
     /// </param>
-    /// <param name="requestUserId">
-    ///     The requested user id.
+    /// <param name="targetUserId">
+    ///     The target user id.
     /// </param>
     /// <param name="changes"></param>
     /// <returns></returns>
     public async Task UpdateAsync(
         string currentUserId, 
-        string requestUserId, 
+        string? targetUserId, 
         Dictionary<string, string> changes)
     {
         if (changes.Count == 0)
@@ -140,13 +140,13 @@ public class UserDataService
             throw new ArgumentNullException(nameof(currentUserId));
         }
             
-        if (requestUserId == null)
+        if (targetUserId == null)
         {
-            requestUserId = currentUserId;
+            targetUserId = currentUserId;
         }
 
         // Whether we are updating someone else.
-        var other = currentUserId != requestUserId;
+        var other = currentUserId != targetUserId;
             
         foreach (var (key, value) in changes)
         {
@@ -155,10 +155,11 @@ public class UserDataService
             {
                 if (other)
                 {
-                    _logger.LogWarning("User {PlayFabId} attempted to update non-existing key {Key} of another user {PlayFabIdOther}", currentUserId, key, requestUserId);
+                    _logger.LogWarning("User {PlayFabId} attempted to update non-existing key {Key} of another user {PlayFabIdOther}", currentUserId, key, targetUserId);
                 }
                 else
                 {
+                    _logger.LogDebug("User {PlayFabId} created key {Key}", currentUserId, key);
                     await _dbUserDataService.InsertAsync(currentUserId, key, value, false);
                 }
                     

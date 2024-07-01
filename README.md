@@ -1,6 +1,6 @@
 # Prospect
 
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/AeonLucid/Prospect/Build?style=for-the-badge)](https://github.com/AeonLucid/Prospect/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/AeonLucid/Prospect/build.yml?style=for-the-badge)](https://github.com/AeonLucid/Prospect/actions)
 
 Also known as "The Cycle: Frontier".
 

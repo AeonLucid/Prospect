@@ -22,6 +22,6 @@ public class FStringTests
         var reader = new FNetBitReader(null, writer.GetData(), (int)writer.GetNumBits());
         var read = FString.Deserialize(reader);
         
-        Assert.AreEqual(testValue, read);
+        Assert.That(read, Is.EqualTo(testValue));
     }
 }

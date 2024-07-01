@@ -1,6 +1,6 @@
 ﻿using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http.Extensions;
-using Newtonsoft.Json;
 
 namespace Prospect.Server.Api.Middleware;
 
@@ -45,7 +45,12 @@ public class RequestLoggerMiddleware
                 var body = await reader.ReadToEndAsync();
                 if (body.StartsWith("{"))
                 {
-                    return JsonConvert.SerializeObject(JsonConvert.DeserializeObject(body), Formatting.Indented);
+                    var bodyJson = JsonSerializer.SerializeToUtf8Bytes(JsonSerializer.Deserialize<object>(body), new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    });
+
+                    return Encoding.UTF8.GetString(bodyJson);
                 }
 
                 return body;

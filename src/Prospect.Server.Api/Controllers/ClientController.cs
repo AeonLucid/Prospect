@@ -117,7 +117,8 @@ public class ClientController : Controller
                 });
             }
             
-            _logger.LogWarning("Invalid steam ticket specified, IsValid {IsValid}, HasValidSignature {Sig}, AppId {AppId}",
+            _logger.LogWarning("Invalid steam ticket specified, IsExpired {IsExpired}, IsValid {IsValid}, HasValidSignature {Sig}, AppId {AppId}",
+                ticket.IsExpired,
                 ticket.IsValid,
                 ticket.HasValidSignature,
                 ticket.AppId);

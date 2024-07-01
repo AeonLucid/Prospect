@@ -7,6 +7,10 @@ namespace Prospect.Unreal.Net;
 
 public ref struct FActorSpawnParameters
 {
+    public FActorSpawnParameters()
+    {
+    }
+
     /// <summary>
     ///     A name to assign as the Name of the Actor being spawned.
     ///     If no value is specified, the name of the spawned Actor will be automatically generated using the form [Class]_[Number].

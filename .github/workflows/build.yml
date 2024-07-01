@@ -15,15 +15,15 @@ jobs:
   build:
     runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Setup Dotnet 
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '6.0.x'
+        dotnet-version: '8.0.x'
 
     - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.0.3
+      uses: microsoft/setup-msbuild@v2.0.0
 
     - name: Restore NuGet
       run: dotnet restore ${{env.PROJ_LAUNCHER}}
@@ -39,11 +39,8 @@ jobs:
     - name: Build Prospect.Launcher
       run: dotnet publish -o ./Prospect-Launcher -r win-x64 --no-self-contained -c Release -v minimal ${{env.PROJ_LAUNCHER}}
 
-    - name: Compress Prospect.Launcher
-      run: 7z a launcher.zip ./Prospect-Launcher
-
     - uses: actions/upload-artifact@v2
       with:
         name: Prospect.Launcher
-        path: ./launcher.zip
+        path: ./Prospect-Launcher
         retention-days: 14

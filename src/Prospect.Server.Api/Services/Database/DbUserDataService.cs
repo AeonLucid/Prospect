@@ -16,7 +16,7 @@ public class DbUserDataService : BaseDbService<PlayFabUserData>
         return await Collection.Find(data => data.PlayFabId == playFabId && data.Key == key).AnyAsync();
     }
 
-    public async Task<PlayFabUserData> FindAsync(string playFabId, string key)
+    public async Task<PlayFabUserData?> FindAsync(string playFabId, string key)
     {
         return await Collection.Find(data => data.PlayFabId == playFabId && data.Key == key).SingleOrDefaultAsync();
     }
