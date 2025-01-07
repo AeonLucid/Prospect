@@ -29,6 +29,10 @@ jobs:
     - name: Restore NuGet
       run: dotnet restore ${{env.PROJ_LAUNCHER}}
 
+    - name: Install Prospect.Agent dependencies
+      run: |
+        vcpkg integrate install
+
     - name: Build Prospect.Agent
       run: msbuild /m /p:Configuration=Release /p:Platform=x64 ${{env.PROJ_AGENT}}
 
