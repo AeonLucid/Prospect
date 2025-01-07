@@ -14,7 +14,7 @@ public class EnterMatchmaking : ICloudScriptFunction<FYEnterMatchAzureFunction, 
             ErrorMessage = "",
             Port = 7777,
             ShardIndex = 0,
-            SingleplayerStation = false,
+            SingleplayerStation = true,
             MaintenanceMode = false,
             SessionTimeJoinDelay = 0
         });

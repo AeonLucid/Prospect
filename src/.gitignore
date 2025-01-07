@@ -1,5 +1,6 @@
 # Agent
 Prospect.Agent.dll
+vcpkg_installed
 
 # Api
 appsettings.Development.json
